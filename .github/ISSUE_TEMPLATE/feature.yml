@@ -1,0 +1,47 @@
+name: 機能実装
+description: 機能の実装・改善タスク
+title: "[Feature] "
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: この機能で何を実現するか
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: 作業内容
+      description: 実装する内容をチェックリストで記載
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 完了条件
+      description: 何をもって完了とするか
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: 対象フェーズ
+      options:
+        - Phase 0
+        - Phase 1a
+        - Phase 1b
+        - Phase 1c
+        - Phase 1d
+        - Phase 2
+        - Phase 3
+    validations:
+      required: true
+  - type: input
+    id: proposal-ref
+    attributes:
+      label: 企画書の参照セクション
+      placeholder: 例：docs/proposal.md §5.2
