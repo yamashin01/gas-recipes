@@ -1,0 +1,3 @@
+# wrangler dev がローカルで読み込む Workers 用シークレット。
+# 本番は `wrangler secret put DATABASE_URL` で設定する。
+DATABASE_URL=
