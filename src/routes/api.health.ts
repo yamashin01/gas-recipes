@@ -14,13 +14,8 @@ export const Route = createFileRoute("/api/health")({
 					await db.execute(sql`select 1`);
 					return json({ status: "ok" });
 				} catch (error) {
-					return json(
-						{
-							status: "error",
-							message: error instanceof Error ? error.message : String(error),
-						},
-						{ status: 500 },
-					);
+					console.error("[api/health] db connection failed", error);
+					return json({ status: "error" }, { status: 500 });
 				}
 			},
 		},
