@@ -51,32 +51,36 @@ export const recipeVisibility = pgEnum("recipe_visibility", [
 	"members",
 ]);
 
-export const recipes = pgTable("recipes", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	// URL に使用するため一意（docs/proposal.md §5.1）
-	slug: text("slug").notNull().unique(),
-	title: text("title").notNull(),
-	summary: text("summary").notNull().default(""),
-	bodyMd: text("body_md").notNull().default(""),
-	status: recipeStatus("status").notNull().default("draft"),
-	visibility: recipeVisibility("visibility").notNull().default("public"),
-	authorId: text("author_id")
-		.notNull()
-		.references(() => user.id),
-	// 全文検索用の生成カラム。MVP では pg_trgm を主に使い、精度不足時にこちらを
-	// 併用する（docs/proposal.md §5.2）。
-	searchVector: tsvector("search_vector").generatedAlwaysAs(
-		sql`to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(body_md, ''))`,
-	),
-	viewCount: integer("view_count").notNull().default(0),
-	publishedAt: timestamp("published_at", { withTimezone: true }),
-	createdAt: timestamp("created_at", { withTimezone: true })
-		.notNull()
-		.defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true })
-		.notNull()
-		.defaultNow(),
-});
+export const recipes = pgTable(
+	"recipes",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		// URL に使用するため一意（docs/proposal.md §5.1）
+		slug: text("slug").notNull().unique(),
+		title: text("title").notNull(),
+		summary: text("summary").notNull().default(""),
+		bodyMd: text("body_md").notNull().default(""),
+		status: recipeStatus("status").notNull().default("draft"),
+		visibility: recipeVisibility("visibility").notNull().default("public"),
+		authorId: text("author_id")
+			.notNull()
+			.references(() => user.id),
+		// 全文検索用の生成カラム。MVP では pg_trgm を主に使い、精度不足時にこちらを
+		// 併用する（docs/proposal.md §5.2）。
+		searchVector: tsvector("search_vector").generatedAlwaysAs(
+			sql`to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(summary, '') || ' ' || coalesce(body_md, ''))`,
+		),
+		viewCount: integer("view_count").notNull().default(0),
+		publishedAt: timestamp("published_at", { withTimezone: true }),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [index("recipes_author_id_idx").on(table.authorId)],
+);
 
 export const codeSnippets = pgTable(
 	"code_snippets",
