@@ -1,0 +1,26 @@
+name: セットアップ・環境構築
+description: 環境構築・設定・運用などの chore タスク
+title: "[Task] "
+labels: ["type:setup"]
+body:
+  - type: textarea
+    id: tasks
+    attributes:
+      label: 作業内容
+      description: 実施する作業をチェックリストで記載
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 完了条件
+      description: 何をもって完了とするか
+    validations:
+      required: true
+  - type: input
+    id: proposal-ref
+    attributes:
+      label: 企画書の参照セクション
+      placeholder: 例：docs/proposal.md 付録
