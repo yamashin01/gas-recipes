@@ -19,6 +19,7 @@ GAS（Google Apps Script）の実装パターンを「レシピ」単位で蓄�
 
 - 企画書：[docs/proposal.md](./docs/proposal.md)
 - アーキテクチャ：[docs/architecture.md](./docs/architecture.md)
+- 初期セットアップ手順：[docs/setup.md](./docs/setup.md)
 - 開発ルール：[CLAUDE.md](./CLAUDE.md)
 
 ---
