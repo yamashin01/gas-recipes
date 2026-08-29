@@ -1,0 +1,11 @@
+allowBuilds:
+  esbuild: true
+  lightningcss: true
+  sharp: true
+  workerd: true
+
+# 直近公開のバージョンを弾く pnpm の minimumReleaseAge ポリシーに引っかからないよう、
+# 間接依存のうち更新頻度が高いものを明示的に少し前のバージョンへ固定する。
+overrides:
+  zod: 4.4.3
+  electron-to-chromium: 1.5.411
