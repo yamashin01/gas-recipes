@@ -4,8 +4,7 @@
 
 ## 関連 Issue
 
-Closes #
-
+Closes #<issue番号>
 ## 変更内容
 
 -
