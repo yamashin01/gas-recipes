@@ -13,20 +13,23 @@ import {
 } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
-// auth（BetterAuth 自動生成テーブルの最小プレースホルダー）
+// auth（BetterAuth のコアスキーマ + admin プラグイン拡張）
 // ---------------------------------------------------------------------------
-// Phase 1a では recipes.author_id の FK 整合を取るために `user` のみを最小限で
-// 定義する（docs/proposal.md §5.1）。Phase 1b で BetterAuth を導入する際、
-// CLI が生成する実際のスキーマ（session / account / verification を含む）に
-// 合わせて置き換える（docs/proposal.md §7、CLAUDE.md 環境変数・シークレット）。
+// フィールド定義は better-auth 1.7 系（@better-auth/core の db/schema）と
+// admin プラグイン（node_modules/better-auth/dist/plugins/admin/schema.mjs）
+// に合わせている。id は better-auth 側で生成するため defaultRandom() は使わない
+// （docs/architecture.md §3、CLAUDE.md 環境変数・シークレット）。
 export const user = pgTable("user", {
 	id: text("id").primaryKey(),
 	name: text("name").notNull(),
 	email: text("email").notNull().unique(),
 	emailVerified: boolean("email_verified").notNull().default(false),
 	image: text("image"),
-	// admin: 書き込み可 / user: 閲覧のみ（docs/proposal.md §7）
+	// admin プラグイン: admin: 書き込み可 / user: 閲覧のみ（docs/proposal.md §7）
 	role: text("role").notNull().default("user"),
+	banned: boolean("banned").notNull().default(false),
+	banReason: text("ban_reason"),
+	banExpires: timestamp("ban_expires", { withTimezone: true }),
 	createdAt: timestamp("created_at", { withTimezone: true })
 		.notNull()
 		.defaultNow(),
@@ -34,6 +37,81 @@ export const user = pgTable("user", {
 		.notNull()
 		.defaultNow(),
 });
+
+export const session = pgTable(
+	"session",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		token: text("token").notNull().unique(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+		ipAddress: text("ip_address"),
+		userAgent: text("user_agent"),
+		// admin プラグイン: 別ユーザーへのなりすまし操作を行った管理者の user.id
+		impersonatedBy: text("impersonated_by"),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [index("session_user_id_idx").on(table.userId)],
+);
+
+export const account = pgTable(
+	"account",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		providerId: text("provider_id").notNull(),
+		// OAuth プロバイダの発行者。ローカル認証は better-auth が合成した値を持つ
+		issuer: text("issuer").notNull(),
+		accountId: text("account_id").notNull(),
+		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		idToken: text("id_token"),
+		accessTokenExpiresAt: timestamp("access_token_expires_at", {
+			withTimezone: true,
+		}),
+		refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+			withTimezone: true,
+		}),
+		scope: text("scope"),
+		password: text("password"),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		index("account_user_id_idx").on(table.userId),
+		index("account_provider_account_idx").on(table.providerId, table.accountId),
+	],
+);
+
+export const verification = pgTable(
+	"verification",
+	{
+		id: text("id").primaryKey(),
+		identifier: text("identifier").notNull(),
+		value: text("value").notNull(),
+		expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [index("verification_identifier_idx").on(table.identifier)],
+);
 
 // ---------------------------------------------------------------------------
 // recipes / code_snippets
@@ -129,6 +207,22 @@ export const recipeTags = pgTable(
 // ---------------------------------------------------------------------------
 export const userRelations = relations(user, ({ many }) => ({
 	recipes: many(recipes),
+	sessions: many(session),
+	accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+	user: one(user, {
+		fields: [session.userId],
+		references: [user.id],
+	}),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+	user: one(user, {
+		fields: [account.userId],
+		references: [user.id],
+	}),
 }));
 
 export const recipesRelations = relations(recipes, ({ one, many }) => ({

@@ -3,5 +3,14 @@
   "name": "gas-recipes",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+  // BetterAuth の secondaryStorage（セッションキャッシュ）用。
+  // `wrangler kv namespace create SESSION_KV` で作成した id に置き換える
+  // （docs/proposal.md §7.1）。
+  "kv_namespaces": [
+    {
+      "binding": "SESSION_KV",
+      "id": "REPLACE_WITH_WRANGLER_KV_NAMESPACE_CREATE_ID"
+    }
+  ]
 }
