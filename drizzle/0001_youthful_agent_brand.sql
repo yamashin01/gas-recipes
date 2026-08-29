@@ -1,0 +1,1 @@
+CREATE INDEX "recipes_author_id_idx" ON "recipes" USING btree ("author_id");
