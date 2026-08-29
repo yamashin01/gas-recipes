@@ -18,6 +18,16 @@ drizzle-kit によるマイグレーション生成・適用の手順と、Neon 
 - アプリ本体（Workers ランタイム）は `@neondatabase/serverless`（HTTP モード）
   を使い続ける。drizzle-kit 用の直接接続とは別経路であり、混同しない
   （企画書 §4.3）。
+- drizzle-kit の CLI（`migrate` / `studio` 等）は、`pg` → `postgres` →
+  `@vercel/postgres` → `@neondatabase/serverless` の順にインストール済み
+  パッケージを自動検出してドライバを選ぶ。本プロジェクトの依存関係には
+  `pg` しかないため（`@neondatabase/serverless` はアプリ用の依存だが CLI にも
+  検出される）、CLI 操作用に **`pg`（node-postgres）を devDependencies に追加**
+  している。`@neondatabase/serverless` 経由（WebSocket 接続）に自動フォール
+  バックすると `'@neondatabase/serverless' can only connect to remote
+  Neon/Vercel Postgres/Supabase instances through a websocket` という警告と
+  ともに CLI から接続できないことがあるため、通常の TCP 接続で安定する `pg` を
+  優先させている。
 
 ## 2. Neon ブランチを使った安全な適用フロー
 
@@ -74,3 +84,7 @@ BetterAuth CLI が生成する `user` / `session` / `account` / `verification` �
   プロジェクトの接続情報（`DATABASE_URL`）が必要で、本セッションでは保有して
   いない。`.env` を用意したうえで、開発ブランチ→本体ブランチの順に
   `pnpm db:migrate` を実行し、本ドキュメントに実施結果を追記すること。
+- `pnpm db:migrate` を `@neondatabase/serverless` 経由（WebSocket）で実行すると
+  接続に失敗する事象を確認したため、CLI 用に `pg` を追加し、`pg` ドライバで
+  実行されるようにした（本節 §1）。`pnpm install` 後に再度 `pnpm db:migrate`
+  を実行すること。
