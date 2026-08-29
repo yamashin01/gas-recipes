@@ -9,3 +9,4 @@ allowBuilds:
 overrides:
   zod: 4.4.3
   electron-to-chromium: 1.5.411
+  node-abi: 3.95.0
