@@ -1,5 +1,6 @@
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { RecipeForm } from "../components/admin/recipe-form";
+import { SnippetManager } from "../components/admin/snippet-manager";
 import {
 	adminDeleteRecipe,
 	adminGetRecipe,
@@ -25,6 +26,7 @@ function EditRecipePage() {
 		<div className="p-8">
 			<h1 className="text-2xl font-bold">レシピを編集</h1>
 			<RecipeForm
+				key={recipe.id}
 				submitLabel="保存する"
 				initialValues={{
 					title: recipe.title,
@@ -62,6 +64,12 @@ function EditRecipePage() {
 						削除
 					</button>
 				}
+			/>
+
+			<SnippetManager
+				key={recipe.id}
+				recipeId={recipe.id}
+				initialSnippets={recipe.snippets}
 			/>
 		</div>
 	);

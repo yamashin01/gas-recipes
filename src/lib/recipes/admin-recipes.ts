@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
-import { recipes, recipeTags, tags } from "../../db/schema";
+import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
 import { slugifyTagName } from "./slugify";
+import { isSnippetLanguage } from "./snippet-language";
 import { validateRecipeInput } from "./validate";
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,16 @@ export const adminGetRecipe = createServerFn({ method: "GET" })
 			},
 			with: {
 				recipeTags: { with: { tag: { columns: { name: true } } } },
+				codeSnippets: {
+					orderBy: [asc(codeSnippets.sortOrder)],
+					columns: {
+						id: true,
+						filename: true,
+						language: true,
+						code: true,
+						sortOrder: true,
+					},
+				},
 			},
 		});
 
@@ -130,6 +141,14 @@ export const adminGetRecipe = createServerFn({ method: "GET" })
 			bodyMd: recipe.bodyMd,
 			status: recipe.status,
 			tags: recipe.recipeTags.map((rt) => rt.tag.name),
+			// codeSnippets.language は DB 上は自由入力の text 列のため、
+			// 表示側の想定外の値が紛れていても plaintext にフォールバックする
+			snippets: recipe.codeSnippets.map((snippet) => ({
+				...snippet,
+				language: isSnippetLanguage(snippet.language)
+					? snippet.language
+					: ("plaintext" as const),
+			})),
 		};
 	});
 
