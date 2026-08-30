@@ -1,3 +1,13 @@
 # wrangler dev がローカルで読み込む Workers 用シークレット。
-# 本番は `wrangler secret put DATABASE_URL` で設定する。
+# 本番は `wrangler secret put <NAME>` で設定する。
 DATABASE_URL=
+
+# BetterAuth（docs/proposal.md §7・§7.2）
+# openssl rand -base64 32 などで生成する
+BETTER_AUTH_SECRET=
+# ローカルは http://localhost:3000
+BETTER_AUTH_URL=http://localhost:3000
+# Google Cloud Console で OAuth クライアントを作成して取得する
+# 承認済みリダイレクト URI: {BETTER_AUTH_URL}/api/auth/callback/google
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
