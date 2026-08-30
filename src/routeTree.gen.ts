@@ -13,6 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
+import { Route as RecipesSlugRouteImport } from './routes/recipes.$slug'
+import { Route as TagsSlugRouteImport } from './routes/tags.$slug'
 import { Route as AdminRecipesNewRouteImport } from './routes/admin.recipes.new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as AdminRecipesIdEditRouteImport } from './routes/admin.recipes.$id.edit'
@@ -37,6 +40,21 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecipesIndexRoute = RecipesIndexRouteImport.update({
+  id: '/recipes/',
+  path: '/recipes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesSlugRoute = RecipesSlugRouteImport.update({
+  id: '/recipes/$slug',
+  path: '/recipes/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TagsSlugRoute = TagsSlugRouteImport.update({
+  id: '/tags/$slug',
+  path: '/tags/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRecipesNewRoute = AdminRecipesNewRouteImport.update({
   id: '/recipes/new',
   path: '/recipes/new',
@@ -57,7 +75,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/recipes/$slug': typeof RecipesSlugRoute
+  '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/recipes/': typeof RecipesIndexRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
@@ -65,7 +86,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
+  '/recipes/$slug': typeof RecipesSlugRoute
+  '/tags/$slug': typeof TagsSlugRoute
   '/admin': typeof AdminIndexRoute
+  '/recipes': typeof RecipesIndexRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
@@ -75,7 +99,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/recipes/$slug': typeof RecipesSlugRoute
+  '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/recipes/': typeof RecipesIndexRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
@@ -86,7 +113,10 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/api/health'
+    | '/recipes/$slug'
+    | '/tags/$slug'
     | '/admin/'
+    | '/recipes/'
     | '/admin/recipes/new'
     | '/api/auth/$'
     | '/admin/recipes/$id/edit'
@@ -94,7 +124,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/health'
+    | '/recipes/$slug'
+    | '/tags/$slug'
     | '/admin'
+    | '/recipes'
     | '/admin/recipes/new'
     | '/api/auth/$'
     | '/admin/recipes/$id/edit'
@@ -103,7 +136,10 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/api/health'
+    | '/recipes/$slug'
+    | '/tags/$slug'
     | '/admin/'
+    | '/recipes/'
     | '/admin/recipes/new'
     | '/api/auth/$'
     | '/admin/recipes/$id/edit'
@@ -113,6 +149,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
+  RecipesSlugRoute: typeof RecipesSlugRoute
+  TagsSlugRoute: typeof TagsSlugRoute
+  RecipesIndexRoute: typeof RecipesIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -144,6 +183,27 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/': {
+      id: '/recipes/'
+      path: '/recipes'
+      fullPath: '/recipes/'
+      preLoaderRoute: typeof RecipesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$slug': {
+      id: '/recipes/$slug'
+      path: '/recipes/$slug'
+      fullPath: '/recipes/$slug'
+      preLoaderRoute: typeof RecipesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tags/$slug': {
+      id: '/tags/$slug'
+      path: '/tags/$slug'
+      fullPath: '/tags/$slug'
+      preLoaderRoute: typeof TagsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/recipes/new': {
@@ -188,6 +248,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
+  RecipesSlugRoute: RecipesSlugRoute,
+  TagsSlugRoute: TagsSlugRoute,
+  RecipesIndexRoute: RecipesIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
