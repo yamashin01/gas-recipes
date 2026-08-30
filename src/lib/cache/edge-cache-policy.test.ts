@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	canonicalCacheKey,
 	isCacheablePath,
 	isCacheableRequest,
 	isStorableResponse,
@@ -120,5 +121,36 @@ describe("isStorableResponse", () => {
 		).toBe(false);
 		// Cache-Control が無いレスポンスは保存期間が決まらない
 		expect(isStorableResponse(res(200, {}))).toBe(false);
+	});
+});
+
+describe("canonicalCacheKey", () => {
+	it("treats page=1 as the bare listing URL", () => {
+		// アプリ内の <Link> は1ページ目でも page=1 を URL に載せる
+		expect(canonicalCacheKey("https://example.com/recipes?page=1")).toBe(
+			"https://example.com/recipes",
+		);
+		expect(canonicalCacheKey("https://example.com/tags/gmail?page=1")).toBe(
+			"https://example.com/tags/gmail",
+		);
+	});
+
+	it("drops trailing slashes but keeps the root path", () => {
+		expect(canonicalCacheKey("https://example.com/recipes/")).toBe(
+			"https://example.com/recipes",
+		);
+		expect(canonicalCacheKey("https://example.com/")).toBe(
+			"https://example.com/",
+		);
+	});
+
+	it("keeps meaningful query params", () => {
+		expect(canonicalCacheKey("https://example.com/search?q=gmail&page=2")).toBe(
+			"https://example.com/search?q=gmail&page=2",
+		);
+		// 空のクエリは内容に影響しないため落とす
+		expect(canonicalCacheKey("https://example.com/search?q=&page=1")).toBe(
+			"https://example.com/search",
+		);
 	});
 });

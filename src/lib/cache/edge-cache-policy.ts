@@ -39,6 +39,32 @@ export function isCacheablePath(pathname: string): boolean {
 }
 
 /**
+ * キャッシュキーに使う正規化済み URL を返す。
+ *
+ * 同じ内容のページが別キーで積まれると、書き込み後の破棄が取りこぼす。
+ * アプリ内の <Link> は1ページ目でも `page=1` を URL に載せるため、
+ * `/recipes` と `/recipes?page=1` は同一視する必要がある（PR #30 レビュー指摘）。
+ * - 末尾スラッシュを落とす（ルートは除く）
+ * - `page=1` と空の値のクエリを落とす
+ */
+export function canonicalCacheKey(url: string): string {
+	const parsed = new URL(url);
+
+	if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+		parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+	}
+
+	const dropped = Array.from(parsed.searchParams.entries())
+		.filter(([key, value]) => value === "" || (key === "page" && value === "1"))
+		.map(([key]) => key);
+	for (const key of dropped) {
+		parsed.searchParams.delete(key);
+	}
+
+	return parsed.toString();
+}
+
+/**
  * キャッシュを引く／保存する対象のリクエストかどうか。
  * HTML ドキュメントの GET のみを対象にし、server function への RPC や
  * 管理画面・認証まわりは対象外にする。

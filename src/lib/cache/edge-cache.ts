@@ -1,5 +1,9 @@
 import { waitUntil } from "cloudflare:workers";
-import { isCacheableRequest, isStorableResponse } from "./edge-cache-policy";
+import {
+	canonicalCacheKey,
+	isCacheableRequest,
+	isStorableResponse,
+} from "./edge-cache-policy";
 import { cacheStorage } from "./public-cache";
 
 // Cloudflare の Cache API による公開ページのエッジキャッシュ（issue #18）。
@@ -10,7 +14,11 @@ import { cacheStorage } from "./public-cache";
 // （docs/architecture.md §4）。
 //
 // 保持時間はレスポンスの Cache-Control（s-maxage）に従う。管理画面からの
-// 更新時は purgePublicCache() で該当 URL を明示的に破棄する。
+// 更新時は purgePublicCache() で該当 URL を破棄する（同一コロのみ。§4.1 参照）。
+//
+// キャッシュキーはリクエスト URL そのものではなく canonicalCacheKey() で
+// 正規化したものを使う。`/recipes` と `/recipes?page=1` のように同じ内容の
+// ページが別キーで積まれると、書き込み後の破棄が取りこぼすため。
 
 /** キャッシュヒットかどうかを動作確認できるようにするレスポンスヘッダ。 */
 export const EDGE_CACHE_HEADER = "x-edge-cache";
@@ -28,7 +36,8 @@ export async function withEdgeCache(
 		return handler();
 	}
 
-	const cached = await cache.match(request);
+	const key = canonicalCacheKey(request.url);
+	const cached = await cache.match(key);
 	if (cached) {
 		const response = new Response(cached.body, cached);
 		response.headers.set(EDGE_CACHE_HEADER, "HIT");
@@ -38,7 +47,7 @@ export async function withEdgeCache(
 	const response = await handler();
 	if (isStorableResponse(response)) {
 		// レスポンス本体は呼び出し元へ返すため、複製の方をキャッシュへ書く
-		waitUntil(cache.put(request, response.clone()));
+		waitUntil(cache.put(key, response.clone()));
 		response.headers.set(EDGE_CACHE_HEADER, "MISS");
 	}
 	return response;
