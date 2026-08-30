@@ -10,7 +10,7 @@
   "kv_namespaces": [
     {
       "binding": "SESSION_KV",
-      "id": "REPLACE_WITH_WRANGLER_KV_NAMESPACE_CREATE_ID"
+      "id": "7e17c40a7f164defb93a2ef341112078"
     }
   ]
 }
