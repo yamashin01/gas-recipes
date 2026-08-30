@@ -25,6 +25,8 @@ function AdminDashboard() {
 		try {
 			await adminDeleteRecipe({ data: { id } });
 			await router.invalidate();
+		} catch (err) {
+			window.alert(err instanceof Error ? err.message : "削除に失敗しました");
 		} finally {
 			setPendingId(null);
 		}

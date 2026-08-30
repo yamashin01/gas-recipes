@@ -1,9 +1,4 @@
-import {
-	createFileRoute,
-	notFound,
-	useNavigate,
-	useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { RecipeForm } from "../components/admin/recipe-form";
 import {
 	adminDeleteRecipe,
@@ -25,7 +20,6 @@ export const Route = createFileRoute("/admin/recipes/$id/edit")({
 function EditRecipePage() {
 	const recipe = Route.useLoaderData();
 	const navigate = useNavigate();
-	const router = useRouter();
 
 	return (
 		<div className="p-8">
@@ -42,7 +36,6 @@ function EditRecipePage() {
 				}}
 				onSubmit={async (values) => {
 					await adminUpdateRecipe({ data: { id: recipe.id, ...values } });
-					await router.invalidate();
 				}}
 				extraActions={
 					<button
@@ -56,8 +49,14 @@ function EditRecipePage() {
 							) {
 								return;
 							}
-							await adminDeleteRecipe({ data: { id: recipe.id } });
-							await navigate({ to: "/admin" });
+							try {
+								await adminDeleteRecipe({ data: { id: recipe.id } });
+								await navigate({ to: "/admin" });
+							} catch (err) {
+								window.alert(
+									err instanceof Error ? err.message : "削除に失敗しました",
+								);
+							}
 						}}
 					>
 						削除

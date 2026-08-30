@@ -15,7 +15,18 @@ async function resolveTagIds(db: Db, tagNames: string[]): Promise<string[]> {
 	);
 	if (names.length === 0) return [];
 
-	const slugs = names.map(slugifyTagName);
+	// 記号だけのタグ名（例："###"）は slugifyTagName で空文字になり、
+	// tags.slug のユニーク制約上、複数の異なるタグ名が1つに衝突してしまう。
+	const slugs = names.map((name) => {
+		const slug = slugifyTagName(name);
+		if (!slug) {
+			throw new Error(
+				`タグ「${name}」から URL に使えるスラッグを生成できません`,
+			);
+		}
+		return slug;
+	});
+
 	await db
 		.insert(tags)
 		.values(names.map((name, i) => ({ name, slug: slugs[i] })))
@@ -29,14 +40,24 @@ async function resolveTagIds(db: Db, tagNames: string[]): Promise<string[]> {
 }
 
 // レシピのタグ付けを丸ごと置き換える。MVP では差分更新より単純さを優先する。
+// neon-http ドライバは db.transaction() 非対応のため（docs/architecture.md §2）、
+// 削除と挿入は db.batch() で1回の HTTP リクエスト内のトランザクションにまとめ、
+// 途中失敗でタグ関連だけが消えた状態にならないようにする。
 async function syncRecipeTags(db: Db, recipeId: string, tagNames: string[]) {
 	const tagIds = await resolveTagIds(db, tagNames);
-	await db.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId));
-	if (tagIds.length > 0) {
-		await db
-			.insert(recipeTags)
-			.values(tagIds.map((tagId) => ({ recipeId, tagId })));
+	const deleteExisting = db
+		.delete(recipeTags)
+		.where(eq(recipeTags.recipeId, recipeId));
+
+	if (tagIds.length === 0) {
+		await deleteExisting;
+		return;
 	}
+
+	await db.batch([
+		deleteExisting,
+		db.insert(recipeTags).values(tagIds.map((tagId) => ({ recipeId, tagId }))),
+	]);
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +94,7 @@ export const adminListRecipes = createServerFn({ method: "GET" }).handler(
 export const adminGetRecipe = createServerFn({ method: "GET" })
 	.validator((id: unknown) => {
 		if (typeof id !== "string" || id.length === 0) {
-			throw new Error("id is required");
+			throw new Error("id は必須です");
 		}
 		return id;
 	})
@@ -153,7 +174,7 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 		}
 		const { id, ...rest } = input as Record<string, unknown>;
 		if (typeof id !== "string" || id.length === 0) {
-			throw new Error("id is required");
+			throw new Error("id は必須です");
 		}
 		return { id, ...validateRecipeInput(rest) };
 	})
@@ -207,7 +228,7 @@ export const adminDeleteRecipe = createServerFn({ method: "POST" })
 	.validator((input: unknown) => {
 		const id = (input as { id?: unknown } | null)?.id;
 		if (typeof id !== "string" || id.length === 0) {
-			throw new Error("id is required");
+			throw new Error("id は必須です");
 		}
 		return { id };
 	})
