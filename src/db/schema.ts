@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
+	bigint,
 	boolean,
 	customType,
 	index,
@@ -112,6 +113,18 @@ export const verification = pgTable(
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
+
+// Workers KV には read-modify-write を1操作で行うアトミックな increment が無く、
+// 複数リクエストが同時に来るとカウントを取りこぼす（PRレビュー指摘）。そのため
+// レート制限（本番のみデフォルト有効）は auth.ts で storage: "database" を指定し、
+// このテーブル上で better-auth 側のアトミックな UPDATE（drizzle-adapter の
+// incrementOne、条件付き WHERE 句で行う）を使う。
+export const rateLimit = pgTable("rate_limit", {
+	id: text("id").primaryKey(),
+	key: text("key").notNull().unique(),
+	count: integer("count").notNull(),
+	lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
 
 // ---------------------------------------------------------------------------
 // recipes / code_snippets

@@ -28,6 +28,12 @@ export function createAuth(db: Db, kv: KVNamespace, env: AuthEnv) {
 		// secondaryStorage を指定すると、セッションの読み取りは KV 経由になる
 		// （storeSessionInDatabase のデフォルトは false のため DB へは書き込まれない）。
 		secondaryStorage: createKvSecondaryStorage(kv),
+		// レート制限（本番のみデフォルトで有効）は KV ではなく DB に保存する。
+		// Workers KV にはアトミックな increment が無く、secondaryStorage 経由だと
+		// 同時リクエストでカウントを取りこぼすため（PRレビュー指摘）。
+		rateLimit: {
+			storage: "database",
+		},
 		socialProviders: {
 			google: {
 				clientId: env.googleClientId,

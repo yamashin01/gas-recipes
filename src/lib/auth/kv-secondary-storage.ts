@@ -27,6 +27,11 @@ export function createKvSecondaryStorage(kv: KVNamespace): SecondaryStorage {
 			}
 			return value;
 		},
+		// SecondaryStorage インターフェースを満たすために実装しているが、
+		// get→put の非アトミックな実装のため同時リクエストでカウントを
+		// 取りこぼしうる（Workers KV に read-modify-write を1操作で行う手段が
+		// 無いため）。better-auth のレート制限は auth.ts で storage: "database"
+		// を指定しており、このメソッドは通常経路では呼ばれない。
 		async increment(key, ttl) {
 			const current = await kv.get(key, { type: "text" });
 			const next = (current ? Number.parseInt(current, 10) : 0) + 1;
