@@ -1,9 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { RecipeCard } from "../components/recipe/recipe-card";
+import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
 import {
 	getTagBySlug,
 	listPublishedRecipes,
 } from "../lib/recipes/public-recipes";
+import { pathWithQuery, seo } from "../lib/seo/site";
 
 interface TagSearch {
 	page: number;
@@ -36,11 +38,17 @@ export const Route = createFileRoute("/tags/$slug")({
 		});
 		return { tag, ...result };
 	},
-	head: ({ loaderData }) => ({
-		meta: loaderData
-			? [{ title: `タグ「${loaderData.tag.name}」 | GAS Recipe Hub` }]
-			: [],
-	}),
+	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
+	head: ({ loaderData, params, match }) =>
+		loaderData
+			? seo({
+					title: `タグ「${loaderData.tag.name}」 | GAS Recipe Hub`,
+					description: `タグ「${loaderData.tag.name}」が付いた GAS レシピの一覧です。`,
+					path: pathWithQuery(`/tags/${encodeURIComponent(params.slug)}`, {
+						page: match.search.page,
+					}),
+				})
+			: {},
 	component: TagPage,
 });
 

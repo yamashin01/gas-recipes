@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RecipeCard } from "../components/recipe/recipe-card";
+import { SearchBox } from "../components/recipe/search-box";
+import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
 import {
 	getTagBySlug,
 	listPublishedRecipes,
 } from "../lib/recipes/public-recipes";
+import { pathWithQuery, seo } from "../lib/seo/site";
 
 interface RecipesSearch {
 	tag?: string;
@@ -35,15 +38,17 @@ export const Route = createFileRoute("/recipes/")({
 		]);
 		return { ...result, tag };
 	},
-	head: () => ({
-		meta: [
-			{ title: "レシピ一覧 | GAS Recipe Hub" },
-			{
-				name: "description",
-				content: "GAS の実装パターンをまとめたレシピの一覧です。",
-			},
-		],
-	}),
+	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
+	head: ({ match }) =>
+		seo({
+			title: "レシピ一覧 | GAS Recipe Hub",
+			description: "GAS の実装パターンをまとめたレシピの一覧です。",
+			// ページ送り・タグ絞り込みは自分自身を canonical にする
+			path: pathWithQuery("/recipes", {
+				tag: match.search.tag,
+				page: match.search.page,
+			}),
+		}),
 	component: RecipesPage,
 });
 
@@ -54,6 +59,10 @@ function RecipesPage() {
 	return (
 		<div className="p-8">
 			<h1 className="text-2xl font-bold">レシピ一覧</h1>
+
+			<div className="mt-4">
+				<SearchBox />
+			</div>
 
 			{tag && (
 				<p className="mt-2 text-sm text-gray-500">

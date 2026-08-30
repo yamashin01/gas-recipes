@@ -42,6 +42,12 @@ BetterAuth CLI も同様に直接接続文字列が必要になる。`src/db/sch
 `user` は Phase 1a 用の最小プレースホルダーなので、BetterAuth CLI が生成する
 実スキーマに置き換える。
 
+## Phase 1d（検索）向けメモ
+
+`0004_search_pg_trgm.sql` は先頭で `CREATE EXTENSION IF NOT EXISTS pg_trgm`
+を実行してから `gin_trgm_ops` の索引を作る。拡張の作成には所有者権限が必要な
+ため、Neon の**オーナーロール**の接続文字列で `pnpm db:migrate` を実行する。
+
 ## 実施記録
 
 - 2026-08-29：初回マイグレーション（recipes / code_snippets / tags /

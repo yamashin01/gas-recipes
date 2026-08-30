@@ -1,7 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { CodeBlock } from "../components/recipe/code-block";
+import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
 import { renderMarkdown } from "../lib/recipes/markdown";
 import { getPublishedRecipeBySlug } from "../lib/recipes/public-recipes";
+import { seo } from "../lib/seo/site";
 
 export const Route = createFileRoute("/recipes/$slug")({
 	loader: async ({ params }) => {
@@ -11,17 +13,16 @@ export const Route = createFileRoute("/recipes/$slug")({
 		}
 		return recipe;
 	},
-	head: ({ loaderData }) => ({
-		meta: loaderData
-			? [
-					{ title: `${loaderData.title} | GAS Recipe Hub` },
-					{
-						name: "description",
-						content: loaderData.summary || loaderData.title,
-					},
-				]
-			: [],
-	}),
+	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
+	head: ({ loaderData, params }) =>
+		loaderData
+			? seo({
+					title: `${loaderData.title} | GAS Recipe Hub`,
+					description: loaderData.summary || loaderData.title,
+					path: `/recipes/${encodeURIComponent(params.slug)}`,
+					type: "article",
+				})
+			: {},
 	component: RecipeDetailPage,
 });
 

@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { codeSnippets, recipes } from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
+import { purgeAfterWrite } from "../cache/public-cache";
 import { isSnippetLanguage, type SnippetLanguage } from "./snippet-language";
 
 interface SnippetInput {
@@ -38,24 +39,35 @@ function validateSnippetInput(input: unknown): SnippetInput {
 
 // 所有レシピに属するスニペットかどうかを確認する（他人のレシピへの
 // 書き込みを防ぐ。docs/proposal.md §7、issue #15 の方針を踏襲）。
-async function assertOwnsSnippet(db: Db, snippetId: string, userId: string) {
+// 併せて、キャッシュ破棄に使うレシピの slug を返す（issue #18）。
+async function assertOwnsSnippet(
+	db: Db,
+	snippetId: string,
+	userId: string,
+): Promise<string> {
 	const snippet = await db.query.codeSnippets.findFirst({
 		where: eq(codeSnippets.id, snippetId),
-		with: { recipe: { columns: { authorId: true } } },
+		with: { recipe: { columns: { authorId: true, slug: true } } },
 	});
 	if (!snippet || snippet.recipe.authorId !== userId) {
 		throw new Error("スニペットが見つかりません");
 	}
+	return snippet.recipe.slug;
 }
 
-async function assertOwnsRecipe(db: Db, recipeId: string, userId: string) {
+async function assertOwnsRecipe(
+	db: Db,
+	recipeId: string,
+	userId: string,
+): Promise<string> {
 	const recipe = await db.query.recipes.findFirst({
 		where: eq(recipes.id, recipeId),
-		columns: { authorId: true },
+		columns: { authorId: true, slug: true },
 	});
 	if (!recipe || recipe.authorId !== userId) {
 		throw new Error("レシピが見つかりません");
 	}
+	return recipe.slug;
 }
 
 export const adminCreateSnippet = createServerFn({ method: "POST" })
@@ -71,7 +83,11 @@ export const adminCreateSnippet = createServerFn({ method: "POST" })
 	})
 	.handler(async ({ data, context }) => {
 		const session = await requireAdminContext(context);
-		await assertOwnsRecipe(context.db, data.recipeId, session.user.id);
+		const recipeSlug = await assertOwnsRecipe(
+			context.db,
+			data.recipeId,
+			session.user.id,
+		);
 
 		const [{ nextSortOrder }] = await context.db
 			.select({
@@ -96,6 +112,8 @@ export const adminCreateSnippet = createServerFn({ method: "POST" })
 				sortOrder: codeSnippets.sortOrder,
 			});
 
+		await purgeAfterWrite(context.request, { recipeSlugs: [recipeSlug] });
+
 		// codeSnippets.language は DB 上は自由入力の text 列のため、
 		// insert 時に検証済みの data.language（SnippetLanguage）をそのまま返す
 		return { ...snippet, language: data.language };
@@ -114,7 +132,11 @@ export const adminUpdateSnippet = createServerFn({ method: "POST" })
 	})
 	.handler(async ({ data, context }) => {
 		const session = await requireAdminContext(context);
-		await assertOwnsSnippet(context.db, data.id, session.user.id);
+		const recipeSlug = await assertOwnsSnippet(
+			context.db,
+			data.id,
+			session.user.id,
+		);
 
 		await context.db
 			.update(codeSnippets)
@@ -124,6 +146,8 @@ export const adminUpdateSnippet = createServerFn({ method: "POST" })
 				code: data.code,
 			})
 			.where(eq(codeSnippets.id, data.id));
+
+		await purgeAfterWrite(context.request, { recipeSlugs: [recipeSlug] });
 	});
 
 export const adminDeleteSnippet = createServerFn({ method: "POST" })
@@ -136,9 +160,15 @@ export const adminDeleteSnippet = createServerFn({ method: "POST" })
 	})
 	.handler(async ({ data, context }) => {
 		const session = await requireAdminContext(context);
-		await assertOwnsSnippet(context.db, data.id, session.user.id);
+		const recipeSlug = await assertOwnsSnippet(
+			context.db,
+			data.id,
+			session.user.id,
+		);
 
 		await context.db.delete(codeSnippets).where(eq(codeSnippets.id, data.id));
+
+		await purgeAfterWrite(context.request, { recipeSlugs: [recipeSlug] });
 	});
 
 export const adminReorderSnippets = createServerFn({ method: "POST" })
@@ -160,7 +190,11 @@ export const adminReorderSnippets = createServerFn({ method: "POST" })
 	})
 	.handler(async ({ data, context }) => {
 		const session = await requireAdminContext(context);
-		await assertOwnsRecipe(context.db, data.recipeId, session.user.id);
+		const recipeSlug = await assertOwnsRecipe(
+			context.db,
+			data.recipeId,
+			session.user.id,
+		);
 
 		if (data.orderedIds.length === 0) {
 			return;
@@ -197,4 +231,6 @@ export const adminReorderSnippets = createServerFn({ method: "POST" })
 					.where(eq(codeSnippets.id, id)),
 			),
 		]);
+
+		await purgeAfterWrite(context.request, { recipeSlugs: [recipeSlug] });
 	});

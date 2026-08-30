@@ -170,7 +170,24 @@ export const recipes = pgTable(
 			.notNull()
 			.defaultNow(),
 	},
-	(table) => [index("recipes_author_id_idx").on(table.authorId)],
+	(table) => [
+		index("recipes_author_id_idx").on(table.authorId),
+		// pg_trgm のトライグラム索引。日本語は形態素解析拡張（PGroonga 等）が
+		// Neon で使えないため、部分一致（ILIKE）と表記ゆれ（% 演算子）の双方を
+		// この索引で賄う（docs/proposal.md §5.2、docs/architecture.md §3-4）。
+		index("recipes_title_trgm_idx").using(
+			"gin",
+			sql`${table.title} gin_trgm_ops`,
+		),
+		index("recipes_summary_trgm_idx").using(
+			"gin",
+			sql`${table.summary} gin_trgm_ops`,
+		),
+		index("recipes_body_md_trgm_idx").using(
+			"gin",
+			sql`${table.bodyMd} gin_trgm_ops`,
+		),
+	],
 );
 
 export const codeSnippets = pgTable(
@@ -185,7 +202,13 @@ export const codeSnippets = pgTable(
 		code: text("code").notNull(),
 		sortOrder: integer("sort_order").notNull().default(0),
 	},
-	(table) => [index("code_snippets_recipe_id_idx").on(table.recipeId)],
+	(table) => [
+		index("code_snippets_recipe_id_idx").on(table.recipeId),
+		index("code_snippets_code_trgm_idx").using(
+			"gin",
+			sql`${table.code} gin_trgm_ops`,
+		),
+	],
 );
 
 // ---------------------------------------------------------------------------
