@@ -26,13 +26,14 @@ export const Route = createFileRoute("/tags/$slug")({
 	validateSearch,
 	loaderDeps: ({ search }) => ({ page: search.page }),
 	loader: async ({ params, deps }) => {
-		const [tag, result] = await Promise.all([
-			getTagBySlug({ data: params.slug }),
-			listPublishedRecipes({ data: { tagSlug: params.slug, page: deps.page } }),
-		]);
+		// 存在しないタグの場合は一覧取得クエリを実行せずに 404 を返す
+		const tag = await getTagBySlug({ data: params.slug });
 		if (!tag) {
 			throw notFound();
 		}
+		const result = await listPublishedRecipes({
+			data: { tagSlug: params.slug, page: deps.page },
+		});
 		return { tag, ...result };
 	},
 	head: ({ loaderData }) => ({

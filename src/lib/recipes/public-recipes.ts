@@ -4,7 +4,13 @@ import type { Db } from "../../db/client";
 import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
 import { isSnippetLanguage } from "./snippet-language";
 
-const PUBLISHED = eq(recipes.status, "published");
+// status = published だけでなく visibility = public も条件にする。
+// members は Phase 3（シンラボ会員限定公開）で使う想定のため、
+// 公開ページからは現時点でも将来的にも除外する（docs/proposal.md §3.3）。
+const PUBLISHED = and(
+	eq(recipes.status, "published"),
+	eq(recipes.visibility, "public"),
+);
 export const RECIPES_PAGE_SIZE = 10;
 
 function recipeIdsForTagSlug(db: Db, tagSlug: string) {
