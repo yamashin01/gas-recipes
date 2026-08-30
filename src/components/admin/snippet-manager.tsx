@@ -5,6 +5,7 @@ import {
 	adminReorderSnippets,
 	adminUpdateSnippet,
 } from "../../lib/recipes/admin-snippets";
+import type { SnippetLanguage } from "../../lib/recipes/snippet-language";
 import { CodeBlock } from "../recipe/code-block";
 import type { SnippetFormValues } from "./snippet-form";
 import { SnippetForm } from "./snippet-form";
@@ -12,7 +13,7 @@ import { SnippetForm } from "./snippet-form";
 export interface SnippetItem {
 	id: string;
 	filename: string;
-	language: string;
+	language: SnippetLanguage;
 	code: string;
 	sortOrder: number;
 }
@@ -62,6 +63,7 @@ export function SnippetManager({
 	}
 
 	async function handleUpdate(id: string, values: SnippetFormValues) {
+		setError(null);
 		await adminUpdateSnippet({ data: { id, ...values } });
 		setSnippets((prev) =>
 			prev.map((s) => (s.id === id ? { ...s, ...values } : s)),
@@ -69,6 +71,7 @@ export function SnippetManager({
 	}
 
 	async function handleCreate(values: SnippetFormValues) {
+		setError(null);
 		const created = await adminCreateSnippet({ data: { recipeId, ...values } });
 		setSnippets((prev) => [...prev, created]);
 	}

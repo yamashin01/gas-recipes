@@ -3,10 +3,11 @@ import { eq, sql } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { codeSnippets, recipes } from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
+import { isSnippetLanguage, type SnippetLanguage } from "./snippet-language";
 
 interface SnippetInput {
 	filename: string;
-	language: string;
+	language: SnippetLanguage;
 	code: string;
 }
 
@@ -21,10 +22,11 @@ function validateSnippetInput(input: unknown): SnippetInput {
 		throw new Error("ファイル名は必須です");
 	}
 
-	const language =
-		typeof raw.language === "string" && raw.language.trim()
-			? raw.language.trim()
-			: "javascript";
+	// UI 以外からの呼び出しも想定し、未対応の言語は plaintext に正規化する
+	// （highlight.js に未登録の言語が DB に残ると表示と不整合になるため）。
+	const rawLanguage =
+		typeof raw.language === "string" ? raw.language.trim() : "";
+	const language = isSnippetLanguage(rawLanguage) ? rawLanguage : "plaintext";
 
 	const code = typeof raw.code === "string" ? raw.code : "";
 	if (!code.trim()) {
@@ -87,9 +89,16 @@ export const adminCreateSnippet = createServerFn({ method: "POST" })
 				code: data.code,
 				sortOrder: nextSortOrder,
 			})
-			.returning();
+			.returning({
+				id: codeSnippets.id,
+				filename: codeSnippets.filename,
+				code: codeSnippets.code,
+				sortOrder: codeSnippets.sortOrder,
+			});
 
-		return snippet;
+		// codeSnippets.language は DB 上は自由入力の text 列のため、
+		// insert 時に検証済みの data.language（SnippetLanguage）をそのまま返す
+		return { ...snippet, language: data.language };
 	});
 
 export const adminUpdateSnippet = createServerFn({ method: "POST" })
@@ -171,15 +180,21 @@ export const adminReorderSnippets = createServerFn({ method: "POST" })
 			throw new Error("スニペットの並び替えに失敗しました");
 		}
 
-		// sort_order は表示順を決めるだけの値で、途中失敗しても最悪
-		// 順序が一時的に崩れるだけ（データ消失はない）ため、
-		// db.batch() のような原子性までは求めずシンプルな並列更新にする。
-		await Promise.all(
-			data.orderedIds.map((id, index) =>
+		// neon-http は HTTP 経由のためリクエストごとにオーバーヘッドがある。
+		// Promise.all で N 回リクエストするとスニペット数に比例して増えるため、
+		// db.batch() で1リクエストにまとめる（db.transaction() 非対応の代替。
+		// docs/architecture.md §2、syncRecipeTags と同じ方針）。
+		const [firstId, ...restIds] = data.orderedIds;
+		await context.db.batch([
+			context.db
+				.update(codeSnippets)
+				.set({ sortOrder: 0 })
+				.where(eq(codeSnippets.id, firstId)),
+			...restIds.map((id, index) =>
 				context.db
 					.update(codeSnippets)
-					.set({ sortOrder: index })
+					.set({ sortOrder: index + 1 })
 					.where(eq(codeSnippets.id, id)),
 			),
-		);
+		]);
 	});

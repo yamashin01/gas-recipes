@@ -1,5 +1,5 @@
 import "highlight.js/styles/github-dark.min.css";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { highlightCode } from "../../lib/recipes/highlight";
 
 export interface CodeBlockProps {
@@ -13,7 +13,12 @@ export interface CodeBlockProps {
 // SSR でも初期 HTML にハイライト済みコードが含まれる。
 export function CodeBlock({ filename, language, code }: CodeBlockProps) {
 	const [copied, setCopied] = useState(false);
-	const highlighted = highlightCode(code, language);
+	// copied の切り替えなど、code/language と無関係な再レンダーでハイライトを
+	// 再計算しないようにする
+	const highlighted = useMemo(
+		() => highlightCode(code, language),
+		[code, language],
+	);
 
 	async function handleCopy() {
 		try {

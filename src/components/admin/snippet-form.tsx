@@ -1,16 +1,15 @@
 import { useState } from "react";
+import {
+	SNIPPET_LANGUAGE_LABELS,
+	SNIPPET_LANGUAGES,
+	type SnippetLanguage,
+} from "../../lib/recipes/snippet-language";
 
 export interface SnippetFormValues {
 	filename: string;
-	language: string;
+	language: SnippetLanguage;
 	code: string;
 }
-
-const LANGUAGE_OPTIONS = [
-	{ value: "javascript", label: "JavaScript" },
-	{ value: "json", label: "JSON" },
-	{ value: "plaintext", label: "プレーンテキスト" },
-];
 
 interface SnippetFormProps {
 	initialValues?: SnippetFormValues;
@@ -28,7 +27,7 @@ export function SnippetForm({
 	const [filename, setFilename] = useState(
 		initialValues?.filename ?? "Code.gs",
 	);
-	const [language, setLanguage] = useState(
+	const [language, setLanguage] = useState<SnippetLanguage>(
 		initialValues?.language ?? "javascript",
 	);
 	const [code, setCode] = useState(initialValues?.code ?? "");
@@ -77,11 +76,11 @@ export function SnippetForm({
 					<select
 						className="rounded border px-3 py-2 text-sm"
 						value={language}
-						onChange={(e) => setLanguage(e.target.value)}
+						onChange={(e) => setLanguage(e.target.value as SnippetLanguage)}
 					>
-						{LANGUAGE_OPTIONS.map((option) => (
-							<option key={option.value} value={option.value}>
-								{option.label}
+						{SNIPPET_LANGUAGES.map((value) => (
+							<option key={value} value={value}>
+								{SNIPPET_LANGUAGE_LABELS[value]}
 							</option>
 						))}
 					</select>
