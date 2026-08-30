@@ -1,5 +1,6 @@
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { RecipeForm } from "../components/admin/recipe-form";
+import { SnippetManager } from "../components/admin/snippet-manager";
 import {
 	adminDeleteRecipe,
 	adminGetRecipe,
@@ -63,6 +64,8 @@ function EditRecipePage() {
 					</button>
 				}
 			/>
+
+			<SnippetManager recipeId={recipe.id} initialSnippets={recipe.snippets} />
 		</div>
 	);
 }
