@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as AdminRecipesNewRouteImport } from './routes/admin.recipes.new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as AdminRecipesIdEditRouteImport } from './routes/admin.recipes.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,10 +37,20 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRecipesNewRoute = AdminRecipesNewRouteImport.update({
+  id: '/recipes/new',
+  path: '/recipes/new',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRecipesIdEditRoute = AdminRecipesIdEditRouteImport.update({
+  id: '/recipes/$id/edit',
+  path: '/recipes/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -46,13 +58,17 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/health': typeof ApiHealthRoute
   '/admin': typeof AdminIndexRoute
+  '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -60,14 +76,37 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/admin/': typeof AdminIndexRoute
+  '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/api/health' | '/admin/' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/api/health'
+    | '/admin/'
+    | '/admin/recipes/new'
+    | '/api/auth/$'
+    | '/admin/recipes/$id/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/health' | '/admin' | '/api/auth/$'
-  id: '__root__' | '/' | '/admin' | '/api/health' | '/admin/' | '/api/auth/$'
+  to:
+    | '/'
+    | '/api/health'
+    | '/admin'
+    | '/admin/recipes/new'
+    | '/api/auth/$'
+    | '/admin/recipes/$id/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/api/health'
+    | '/admin/'
+    | '/admin/recipes/new'
+    | '/api/auth/$'
+    | '/admin/recipes/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -107,6 +146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/recipes/new': {
+      id: '/admin/recipes/new'
+      path: '/recipes/new'
+      fullPath: '/admin/recipes/new'
+      preLoaderRoute: typeof AdminRecipesNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -114,15 +160,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/recipes/$id/edit': {
+      id: '/admin/recipes/$id/edit'
+      path: '/recipes/$id/edit'
+      fullPath: '/admin/recipes/$id/edit'
+      preLoaderRoute: typeof AdminRecipesIdEditRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminRecipesNewRoute: typeof AdminRecipesNewRoute
+  AdminRecipesIdEditRoute: typeof AdminRecipesIdEditRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminRecipesNewRoute: AdminRecipesNewRoute,
+  AdminRecipesIdEditRoute: AdminRecipesIdEditRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
