@@ -16,11 +16,15 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as CollectionsSlugRouteImport } from './routes/collections.$slug'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
 import { Route as RecipesSlugRouteImport } from './routes/recipes.$slug'
 import { Route as TagsSlugRouteImport } from './routes/tags.$slug'
+import { Route as AdminCollectionsIndexRouteImport } from './routes/admin.collections.index'
+import { Route as AdminCollectionsNewRouteImport } from './routes/admin.collections.new'
 import { Route as AdminRecipesNewRouteImport } from './routes/admin.recipes.new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as AdminCollectionsIdEditRouteImport } from './routes/admin.collections.$id.edit'
 import { Route as AdminRecipesIdEditRouteImport } from './routes/admin.recipes.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
@@ -58,6 +62,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollectionsSlugRoute = CollectionsSlugRouteImport.update({
+  id: '/collections/$slug',
+  path: '/collections/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
   id: '/recipes/',
   path: '/recipes/',
@@ -73,6 +82,16 @@ const TagsSlugRoute = TagsSlugRouteImport.update({
   path: '/tags/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCollectionsIndexRoute = AdminCollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCollectionsNewRoute = AdminCollectionsNewRouteImport.update({
+  id: '/collections/new',
+  path: '/collections/new',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRecipesNewRoute = AdminRecipesNewRouteImport.update({
   id: '/recipes/new',
   path: '/recipes/new',
@@ -82,6 +101,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCollectionsIdEditRoute = AdminCollectionsIdEditRouteImport.update({
+  id: '/collections/$id/edit',
+  path: '/collections/$id/edit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminRecipesIdEditRoute = AdminRecipesIdEditRouteImport.update({
   id: '/recipes/$id/edit',
@@ -96,12 +120,16 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -110,12 +138,16 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin': typeof AdminIndexRoute
   '/recipes': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRoutesById {
@@ -126,12 +158,16 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
 }
 export interface FileRouteTypes {
@@ -143,12 +179,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin/'
     | '/recipes/'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
     | '/api/auth/$'
+    | '/admin/collections/'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -157,12 +197,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin'
     | '/recipes'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
     | '/api/auth/$'
+    | '/admin/collections'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
   id:
     | '__root__'
@@ -172,12 +216,16 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin/'
     | '/recipes/'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
     | '/api/auth/$'
+    | '/admin/collections/'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
   fileRoutesById: FileRoutesById
 }
@@ -188,6 +236,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  CollectionsSlugRoute: typeof CollectionsSlugRoute
   RecipesSlugRoute: typeof RecipesSlugRoute
   TagsSlugRoute: typeof TagsSlugRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
@@ -245,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/$slug': {
+      id: '/collections/$slug'
+      path: '/collections/$slug'
+      fullPath: '/collections/$slug'
+      preLoaderRoute: typeof CollectionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/': {
       id: '/recipes/'
       path: '/recipes'
@@ -266,6 +322,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TagsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/collections/': {
+      id: '/admin/collections/'
+      path: '/collections'
+      fullPath: '/admin/collections/'
+      preLoaderRoute: typeof AdminCollectionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/collections/new': {
+      id: '/admin/collections/new'
+      path: '/collections/new'
+      fullPath: '/admin/collections/new'
+      preLoaderRoute: typeof AdminCollectionsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/recipes/new': {
       id: '/admin/recipes/new'
       path: '/recipes/new'
@@ -280,6 +350,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/collections/$id/edit': {
+      id: '/admin/collections/$id/edit'
+      path: '/collections/$id/edit'
+      fullPath: '/admin/collections/$id/edit'
+      preLoaderRoute: typeof AdminCollectionsIdEditRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/recipes/$id/edit': {
       id: '/admin/recipes/$id/edit'
       path: '/recipes/$id/edit'
@@ -292,13 +369,19 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminCollectionsNewRoute: typeof AdminCollectionsNewRoute
   AdminRecipesNewRoute: typeof AdminRecipesNewRoute
+  AdminCollectionsIndexRoute: typeof AdminCollectionsIndexRoute
+  AdminCollectionsIdEditRoute: typeof AdminCollectionsIdEditRoute
   AdminRecipesIdEditRoute: typeof AdminRecipesIdEditRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminCollectionsNewRoute: AdminCollectionsNewRoute,
   AdminRecipesNewRoute: AdminRecipesNewRoute,
+  AdminCollectionsIndexRoute: AdminCollectionsIndexRoute,
+  AdminCollectionsIdEditRoute: AdminCollectionsIdEditRoute,
   AdminRecipesIdEditRoute: AdminRecipesIdEditRoute,
 }
 
@@ -311,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiHealthRoute: ApiHealthRoute,
+  CollectionsSlugRoute: CollectionsSlugRoute,
   RecipesSlugRoute: RecipesSlugRoute,
   TagsSlugRoute: TagsSlugRoute,
   RecipesIndexRoute: RecipesIndexRoute,
@@ -319,13 +403,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -3,6 +3,10 @@
 drizzle-kit によるマイグレーション適用と、Neon のブランチ機能を使った安全な
 試行フローの手順書（企画書 §4.2・§8、アーキテクチャ §2-3）。
 
+適用済みのマイグレーションは DB の `drizzle.__drizzle_migrations` を参照する。
+個別の注意点はマイグレーション SQL のコメントに書く（Markdown 側の実施記録は
+DB 側の写しでしかなく更新漏れで陳腐化するため、本ファイルでは持たない）。
+
 ## 前提
 
 - drizzle-kit は Workers の DB バインディングに到達できないため、`.env` の
@@ -47,8 +51,3 @@ BetterAuth CLI も同様に直接接続文字列が必要になる。`src/db/sch
 `0004_search_pg_trgm.sql` は先頭で `CREATE EXTENSION IF NOT EXISTS pg_trgm`
 を実行してから `gin_trgm_ops` の索引を作る。拡張の作成には所有者権限が必要な
 ため、Neon の**オーナーロール**の接続文字列で `pnpm db:migrate` を実行する。
-
-## 実施記録
-
-- 2026-08-29：初回マイグレーション（recipes / code_snippets / tags /
-  recipe_tags / user）を開発ブランチ→本体ブランチの順に適用済み（PR #25）。

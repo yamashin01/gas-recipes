@@ -22,7 +22,7 @@ const EXACT_PATHS = new Set([
 	"/sitemap.xml",
 	"/robots.txt",
 ]);
-const PREFIXES = ["/recipes/", "/tags/"];
+const PREFIXES = ["/recipes/", "/tags/", "/collections/"];
 
 /** パスがエッジキャッシュ対象の公開ページかどうか。 */
 export function isCacheablePath(pathname: string): boolean {
@@ -108,4 +108,6 @@ export interface PurgeTargets {
 	recipeSlugs?: string[];
 	/** 影響するタグの slug */
 	tagSlugs?: string[];
+	/** 更新・削除されたコレクションの slug（旧 slug も含める） */
+	collectionSlugs?: string[];
 }

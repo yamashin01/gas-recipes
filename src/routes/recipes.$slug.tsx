@@ -1,24 +1,48 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { CodeBlock } from "../components/recipe/code-block";
 import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
+import { getCollectionNavigation } from "../lib/collections/public-collections";
 import { renderMarkdown } from "../lib/recipes/markdown";
 import { getPublishedRecipeBySlug } from "../lib/recipes/public-recipes";
 import { seo } from "../lib/seo/site";
 
+interface RecipeSearch {
+	collection?: string;
+}
+
+// tags.$slug.tsx と同じ理由で、必須にすると全ての <Link to="/recipes/$slug">
+// で search 指定が必要になる。collection はコレクション経由の閲覧時のみ
+// 付与される任意パラメータなので optional にする。
+function validateSearch(search: Record<string, unknown>): RecipeSearch {
+	const collection =
+		typeof search.collection === "string" && search.collection
+			? search.collection
+			: undefined;
+	return collection ? { collection } : {};
+}
+
 export const Route = createFileRoute("/recipes/$slug")({
-	loader: async ({ params }) => {
+	validateSearch,
+	loaderDeps: ({ search }) => ({ collection: search.collection }),
+	loader: async ({ params, deps }) => {
 		const recipe = await getPublishedRecipeBySlug({ data: params.slug });
 		if (!recipe) {
 			throw notFound();
 		}
-		return recipe;
+		// コレクション経由で開いた場合のみ前後ナビゲーション用のデータを取る
+		const navigation = deps.collection
+			? await getCollectionNavigation({
+					data: { collectionSlug: deps.collection, recipeSlug: params.slug },
+				})
+			: null;
+		return { recipe, navigation };
 	},
 	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
 	head: ({ loaderData, params }) =>
 		loaderData
 			? seo({
-					title: `${loaderData.title} | GAS Recipe Hub`,
-					description: loaderData.summary || loaderData.title,
+					title: `${loaderData.recipe.title} | GAS Recipe Hub`,
+					description: loaderData.recipe.summary || loaderData.recipe.title,
 					path: `/recipes/${encodeURIComponent(params.slug)}`,
 					type: "article",
 				})
@@ -27,11 +51,24 @@ export const Route = createFileRoute("/recipes/$slug")({
 });
 
 function RecipeDetailPage() {
-	const recipe = Route.useLoaderData();
+	const { recipe, navigation } = Route.useLoaderData();
 	const html = renderMarkdown(recipe.bodyMd);
 
 	return (
 		<div className="p-8">
+			{navigation && (
+				<p className="mb-4 text-sm text-gray-500">
+					シリーズ：
+					<Link
+						to="/collections/$slug"
+						params={{ slug: navigation.collection.slug }}
+						className="ml-1 underline"
+					>
+						{navigation.collection.title}
+					</Link>
+				</p>
+			)}
+
 			<h1 className="text-2xl font-bold">{recipe.title}</h1>
 
 			{recipe.tags.length > 0 && (
@@ -74,6 +111,35 @@ function RecipeDetailPage() {
 						/>
 					))}
 				</div>
+			)}
+
+			{navigation && (
+				<nav className="mt-8 flex items-center justify-between gap-4 text-sm">
+					{navigation.prev ? (
+						<Link
+							to="/recipes/$slug"
+							params={{ slug: navigation.prev.slug }}
+							search={{ collection: navigation.collection.slug }}
+							className="underline"
+						>
+							← {navigation.prev.title}
+						</Link>
+					) : (
+						<span />
+					)}
+					{navigation.next ? (
+						<Link
+							to="/recipes/$slug"
+							params={{ slug: navigation.next.slug }}
+							search={{ collection: navigation.collection.slug }}
+							className="underline"
+						>
+							{navigation.next.title} →
+						</Link>
+					) : (
+						<span />
+					)}
+				</nav>
 			)}
 		</div>
 	);

@@ -239,12 +239,54 @@ export const recipeTags = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// collections / collection_items（Phase 2、docs/proposal.md §2.3・§3.2・§5.1）
+// ---------------------------------------------------------------------------
+export const collections = pgTable("collections", {
+	id: uuid("id").primaryKey().defaultRandom(),
+	// URL に使用するため一意（/collections/$slug、docs/proposal.md §6）
+	slug: text("slug").notNull().unique(),
+	title: text("title").notNull(),
+	description: text("description").notNull().default(""),
+	status: recipeStatus("status").notNull().default("draft"),
+	authorId: text("author_id")
+		.notNull()
+		.references(() => user.id),
+	publishedAt: timestamp("published_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true })
+		.notNull()
+		.defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true })
+		.notNull()
+		.defaultNow(),
+});
+
+export const collectionItems = pgTable(
+	"collection_items",
+	{
+		collectionId: uuid("collection_id")
+			.notNull()
+			.references(() => collections.id, { onDelete: "cascade" }),
+		recipeId: uuid("recipe_id")
+			.notNull()
+			.references(() => recipes.id, { onDelete: "cascade" }),
+		sortOrder: integer("sort_order").notNull().default(0),
+	},
+	(table) => [
+		primaryKey({ columns: [table.collectionId, table.recipeId] }),
+		// 複合 PK は collection_id 起点の検索しかカバーしないため、recipe_id 単独の
+		// 検索用に別途インデックスを張る（recipe_tags と同じ方針）。
+		index("collection_items_recipe_id_idx").on(table.recipeId),
+	],
+);
+
+// ---------------------------------------------------------------------------
 // relations
 // ---------------------------------------------------------------------------
 export const userRelations = relations(user, ({ many }) => ({
 	recipes: many(recipes),
 	sessions: many(session),
 	accounts: many(account),
+	collections: many(collections),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -268,6 +310,7 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
 	}),
 	codeSnippets: many(codeSnippets),
 	recipeTags: many(recipeTags),
+	collectionItems: many(collectionItems),
 }));
 
 export const codeSnippetsRelations = relations(codeSnippets, ({ one }) => ({
@@ -291,3 +334,25 @@ export const recipeTagsRelations = relations(recipeTags, ({ one }) => ({
 		references: [tags.id],
 	}),
 }));
+
+export const collectionsRelations = relations(collections, ({ one, many }) => ({
+	author: one(user, {
+		fields: [collections.authorId],
+		references: [user.id],
+	}),
+	collectionItems: many(collectionItems),
+}));
+
+export const collectionItemsRelations = relations(
+	collectionItems,
+	({ one }) => ({
+		collection: one(collections, {
+			fields: [collectionItems.collectionId],
+			references: [collections.id],
+		}),
+		recipe: one(recipes, {
+			fields: [collectionItems.recipeId],
+			references: [recipes.id],
+		}),
+	}),
+);

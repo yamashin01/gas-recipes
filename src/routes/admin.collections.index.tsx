@@ -1,17 +1,17 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-	adminDeleteRecipe,
-	adminListRecipes,
-} from "../lib/recipes/admin-recipes";
+	adminDeleteCollection,
+	adminListCollections,
+} from "../lib/collections/admin-collections";
 
-export const Route = createFileRoute("/admin/")({
-	loader: () => adminListRecipes(),
-	component: AdminDashboard,
+export const Route = createFileRoute("/admin/collections/")({
+	loader: () => adminListCollections(),
+	component: AdminCollectionsPage,
 });
 
-function AdminDashboard() {
-	const recipes = Route.useLoaderData();
+function AdminCollectionsPage() {
+	const collections = Route.useLoaderData();
 	const router = useRouter();
 	const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ function AdminDashboard() {
 		}
 		setPendingId(id);
 		try {
-			await adminDeleteRecipe({ data: { id } });
+			await adminDeleteCollection({ data: { id } });
 			await router.invalidate();
 		} catch (err) {
 			window.alert(err instanceof Error ? err.message : "削除に失敗しました");
@@ -35,13 +35,13 @@ function AdminDashboard() {
 	return (
 		<div className="p-8">
 			<div className="flex items-center justify-between">
-				<h1 className="text-2xl font-bold">管理ダッシュボード</h1>
+				<h1 className="text-2xl font-bold">コレクション管理</h1>
 				<div className="flex items-center gap-4">
-					<Link to="/admin/collections" className="text-sm underline">
-						コレクション管理
+					<Link to="/admin" className="text-sm underline">
+						レシピ管理に戻る
 					</Link>
 					<Link
-						to="/admin/recipes/new"
+						to="/admin/collections/new"
 						className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
 					>
 						新規作成
@@ -49,43 +49,45 @@ function AdminDashboard() {
 				</div>
 			</div>
 
-			{recipes.length === 0 ? (
-				<p className="mt-6 text-sm text-gray-500">レシピがまだありません。</p>
+			{collections.length === 0 ? (
+				<p className="mt-6 text-sm text-gray-500">
+					コレクションがまだありません。
+				</p>
 			) : (
 				<table className="mt-6 w-full border-collapse text-sm">
 					<thead>
 						<tr className="border-b text-left">
 							<th className="py-2">タイトル</th>
 							<th className="py-2">状態</th>
-							<th className="py-2">タグ</th>
+							<th className="py-2">レシピ数</th>
 							<th className="py-2">更新日</th>
 							<th className="py-2" />
 						</tr>
 					</thead>
 					<tbody>
-						{recipes.map((recipe) => (
-							<tr key={recipe.id} className="border-b">
-								<td className="py-2">{recipe.title}</td>
+						{collections.map((collection) => (
+							<tr key={collection.id} className="border-b">
+								<td className="py-2">{collection.title}</td>
 								<td className="py-2">
 									<span
 										className={
-											recipe.status === "published"
+											collection.status === "published"
 												? "text-green-700"
 												: "text-gray-500"
 										}
 									>
-										{recipe.status === "published" ? "公開中" : "下書き"}
+										{collection.status === "published" ? "公開中" : "下書き"}
 									</span>
 								</td>
-								<td className="py-2">{recipe.tags.join(", ")}</td>
+								<td className="py-2">{collection.itemCount}</td>
 								<td className="py-2">
-									{new Date(recipe.updatedAt).toLocaleDateString("ja-JP")}
+									{new Date(collection.updatedAt).toLocaleDateString("ja-JP")}
 								</td>
 								<td className="py-2 text-right">
 									<div className="flex justify-end gap-3">
 										<Link
-											to="/admin/recipes/$id/edit"
-											params={{ id: recipe.id }}
+											to="/admin/collections/$id/edit"
+											params={{ id: collection.id }}
 											className="underline"
 										>
 											編集
@@ -93,8 +95,10 @@ function AdminDashboard() {
 										<button
 											type="button"
 											className="text-red-600 underline disabled:opacity-50"
-											disabled={pendingId === recipe.id}
-											onClick={() => handleDelete(recipe.id, recipe.title)}
+											disabled={pendingId === collection.id}
+											onClick={() =>
+												handleDelete(collection.id, collection.title)
+											}
 										>
 											削除
 										</button>
