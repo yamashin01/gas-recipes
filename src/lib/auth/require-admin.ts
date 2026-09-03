@@ -1,5 +1,4 @@
 import { redirect } from "@tanstack/react-router";
-import { getRequest } from "@tanstack/react-start/server";
 import type { AppRequestContext } from "../../start";
 import { getAuthSession } from "./get-session";
 
@@ -24,7 +23,7 @@ export async function requireAdminSession() {
 // getAuthSession（server function 経由の別リクエスト）を使わずここで直接検証する。
 export async function requireAdminContext(context: AppRequestContext) {
 	const session = await context.auth.api.getSession({
-		headers: getRequest().headers,
+		headers: context.request.headers,
 	});
 
 	if (!session || session.user.role !== "admin") {

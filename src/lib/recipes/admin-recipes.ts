@@ -3,6 +3,7 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
+import { purgeAfterWrite } from "../cache/public-cache";
 import { slugifyTagName } from "./slugify";
 import { isSnippetLanguage } from "./snippet-language";
 import { validateRecipeInput } from "./validate";
@@ -10,11 +11,14 @@ import { validateRecipeInput } from "./validate";
 // ---------------------------------------------------------------------------
 // tags: 名前の配列から tag_id を解決する（存在しなければ作成する）
 // ---------------------------------------------------------------------------
-async function resolveTagIds(db: Db, tagNames: string[]): Promise<string[]> {
+async function resolveTagIds(
+	db: Db,
+	tagNames: string[],
+): Promise<{ ids: string[]; slugs: string[] }> {
 	const names = Array.from(
 		new Set(tagNames.map((name) => name.trim()).filter(Boolean)),
 	);
-	if (names.length === 0) return [];
+	if (names.length === 0) return { ids: [], slugs: [] };
 
 	// 記号だけのタグ名（例："###"）は slugifyTagName で空文字になり、
 	// tags.slug のユニーク制約上、複数の異なるタグ名が1つに衝突してしまう。
@@ -37,28 +41,43 @@ async function resolveTagIds(db: Db, tagNames: string[]): Promise<string[]> {
 		.select({ id: tags.id })
 		.from(tags)
 		.where(inArray(tags.slug, slugs));
-	return rows.map((row) => row.id);
+	return { ids: rows.map((row) => row.id), slugs };
+}
+
+// キャッシュ破棄の対象になるタグページを知るため、現在のタグ slug を引く
+async function currentTagSlugs(db: Db, recipeId: string): Promise<string[]> {
+	const rows = await db
+		.select({ slug: tags.slug })
+		.from(recipeTags)
+		.innerJoin(tags, eq(tags.id, recipeTags.tagId))
+		.where(eq(recipeTags.recipeId, recipeId));
+	return rows.map((row) => row.slug);
 }
 
 // レシピのタグ付けを丸ごと置き換える。MVP では差分更新より単純さを優先する。
 // neon-http ドライバは db.transaction() 非対応のため（docs/architecture.md §2）、
 // 削除と挿入は db.batch() で1回の HTTP リクエスト内のトランザクションにまとめ、
 // 途中失敗でタグ関連だけが消えた状態にならないようにする。
-async function syncRecipeTags(db: Db, recipeId: string, tagNames: string[]) {
-	const tagIds = await resolveTagIds(db, tagNames);
+async function syncRecipeTags(
+	db: Db,
+	recipeId: string,
+	tagNames: string[],
+): Promise<string[]> {
+	const { ids, slugs } = await resolveTagIds(db, tagNames);
 	const deleteExisting = db
 		.delete(recipeTags)
 		.where(eq(recipeTags.recipeId, recipeId));
 
-	if (tagIds.length === 0) {
+	if (ids.length === 0) {
 		await deleteExisting;
-		return;
+		return slugs;
 	}
 
 	await db.batch([
 		deleteExisting,
-		db.insert(recipeTags).values(tagIds.map((tagId) => ({ recipeId, tagId }))),
+		db.insert(recipeTags).values(ids.map((tagId) => ({ recipeId, tagId }))),
 	]);
+	return slugs;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +200,14 @@ export const adminCreateRecipe = createServerFn({ method: "POST" })
 			})
 			.returning({ id: recipes.id });
 
-		await syncRecipeTags(context.db, recipe.id, data.tags);
+		const tagSlugs = await syncRecipeTags(context.db, recipe.id, data.tags);
+
+		if (data.status === "published") {
+			await purgeAfterWrite(context.request, {
+				recipeSlugs: [data.slug],
+				tagSlugs,
+			});
+		}
 
 		return { id: recipe.id };
 	});
@@ -225,6 +251,9 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 				? new Date()
 				: current.publishedAt;
 
+		// タグを差し替える前に、旧タグページもキャッシュ破棄の対象に含める
+		const previousTagSlugs = await currentTagSlugs(context.db, data.id);
+
 		await context.db
 			.update(recipes)
 			.set({
@@ -238,7 +267,13 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 			})
 			.where(eq(recipes.id, data.id));
 
-		await syncRecipeTags(context.db, data.id, data.tags);
+		const tagSlugs = await syncRecipeTags(context.db, data.id, data.tags);
+
+		// slug を変えた場合は旧 URL のキャッシュも破棄する
+		await purgeAfterWrite(context.request, {
+			recipeSlugs: [data.slug, current.slug],
+			tagSlugs: [...previousTagSlugs, ...tagSlugs],
+		});
 
 		return { id: data.id };
 	});
@@ -256,12 +291,19 @@ export const adminDeleteRecipe = createServerFn({ method: "POST" })
 
 		const current = await context.db.query.recipes.findFirst({
 			where: eq(recipes.id, data.id),
-			columns: { authorId: true },
+			columns: { authorId: true, slug: true },
 		});
 		if (!current || current.authorId !== session.user.id) {
 			throw new Error("レシピが見つかりません");
 		}
 
+		const tagSlugs = await currentTagSlugs(context.db, data.id);
+
 		// code_snippets・recipe_tags は ON DELETE CASCADE で追随して削除される
 		await context.db.delete(recipes).where(eq(recipes.id, data.id));
+
+		await purgeAfterWrite(context.request, {
+			recipeSlugs: [current.slug],
+			tagSlugs,
+		});
 	});

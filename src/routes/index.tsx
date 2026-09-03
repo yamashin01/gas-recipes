@@ -1,20 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { RecipeCard } from "../components/recipe/recipe-card";
+import { SearchBox } from "../components/recipe/search-box";
 import { authClient } from "../lib/auth/auth-client";
+import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
 import { getHomeData } from "../lib/recipes/public-recipes";
+import { SITE_DESCRIPTION, SITE_NAME, seo } from "../lib/seo/site";
 
 export const Route = createFileRoute("/")({
 	loader: () => getHomeData(),
-	head: () => ({
-		meta: [
-			{ title: "GAS Recipe Hub" },
-			{
-				name: "description",
-				content:
-					"GAS の実装パターンを「レシピ」単位で蓄積・公開するナレッジベース。",
-			},
-		],
-	}),
+	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
+	head: () =>
+		seo({
+			title: SITE_NAME,
+			description: SITE_DESCRIPTION,
+			path: "/",
+		}),
 	component: Home,
 });
 
@@ -28,6 +28,10 @@ function Home() {
 			<p className="mt-4 text-lg">
 				GAS の実装パターンを「レシピ」単位で蓄積・公開するナレッジベース。
 			</p>
+
+			<div className="mt-6">
+				<SearchBox />
+			</div>
 
 			{/* 管理者は /admin から書き込み操作を行う（issue #12・#13） */}
 			<div className="mt-6">

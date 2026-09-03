@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
@@ -28,6 +31,21 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -74,6 +92,9 @@ const AdminRecipesIdEditRoute = AdminRecipesIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
@@ -85,6 +106,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
@@ -98,6 +122,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/search': typeof SearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
@@ -112,6 +139,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/robots.txt'
+    | '/search'
+    | '/sitemap.xml'
     | '/api/health'
     | '/recipes/$slug'
     | '/tags/$slug'
@@ -123,6 +153,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/robots.txt'
+    | '/search'
+    | '/sitemap.xml'
     | '/api/health'
     | '/recipes/$slug'
     | '/tags/$slug'
@@ -135,6 +168,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/robots.txt'
+    | '/search'
+    | '/sitemap.xml'
     | '/api/health'
     | '/recipes/$slug'
     | '/tags/$slug'
@@ -148,6 +184,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SearchRoute: typeof SearchRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiHealthRoute: typeof ApiHealthRoute
   RecipesSlugRoute: typeof RecipesSlugRoute
   TagsSlugRoute: typeof TagsSlugRoute
@@ -169,6 +208,27 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -247,6 +307,9 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SearchRoute: SearchRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiHealthRoute: ApiHealthRoute,
   RecipesSlugRoute: RecipesSlugRoute,
   TagsSlugRoute: TagsSlugRoute,
