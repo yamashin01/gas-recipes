@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { collections, recipes, recipeTags, tags } from "../../db/schema";
 import { PUBLISHED_COLLECTION } from "../collections/public-collections";
-import { PUBLISHED } from "../recipes/public-recipes";
+import { PUBLISHED } from "../recipes/published";
 
 // sitemap.xml / robots.txt の組み立て（issue #18）。
 // XML の生成は DB に依存しない純粋な関数に分け、ユニットテストの対象にする。
