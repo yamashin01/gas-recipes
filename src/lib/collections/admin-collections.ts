@@ -37,6 +37,23 @@ async function touchCollection(db: Db, collectionId: string) {
 		.where(eq(collections.id, collectionId));
 }
 
+// キャッシュ破棄の対象になる /recipes/$slug?collection=$slug を知るため、
+// 現在このコレクションに属するレシピの slug を引く（admin-recipes.ts の
+// currentCollectionSlugs と対になる方針。PRレビュー指摘：コレクションの並び
+// 替え・タイトル変更をしても、この組み合わせのキャッシュキーは別扱いのため
+// 破棄されていなかった）。
+async function memberRecipeSlugs(
+	db: Db,
+	collectionId: string,
+): Promise<string[]> {
+	const rows = await db
+		.select({ slug: recipes.slug })
+		.from(collectionItems)
+		.innerJoin(recipes, eq(recipes.id, collectionItems.recipeId))
+		.where(eq(collectionItems.collectionId, collectionId));
+	return rows.map((row) => row.slug);
+}
+
 // ---------------------------------------------------------------------------
 // queries
 // ---------------------------------------------------------------------------
@@ -201,9 +218,16 @@ export const adminUpdateCollection = createServerFn({ method: "POST" })
 			})
 			.where(eq(collections.id, data.id));
 
-		// slug を変えた場合は旧 URL のキャッシュも破棄する
+		// slug を変えた場合は旧 URL のキャッシュも破棄する。タイトル変更も
+		// /recipes/$slug?collection=$slug（シリーズ名の表示を含む）に影響する
+		// ため、所属レシピの分もあわせて破棄する（PRレビュー指摘）。
+		const memberSlugs = await memberRecipeSlugs(context.db, data.id);
 		await purgeAfterWrite(context.request, {
 			collectionSlugs: [data.slug, current.slug],
+			recipeCollectionPairs: memberSlugs.flatMap((recipeSlug) => [
+				{ recipeSlug, collectionSlug: data.slug },
+				{ recipeSlug, collectionSlug: current.slug },
+			]),
 		});
 
 		return { id: data.id };
@@ -296,8 +320,16 @@ export const adminAddCollectionItem = createServerFn({ method: "POST" })
 		});
 
 		await touchCollection(context.db, collection.id);
+		// 追加によって全メンバーの前後ナビゲーションが変わり得るため、
+		// メンバー全員の /recipes/$slug?collection=$slug も破棄する
+		// （PRレビュー指摘）。
+		const memberSlugs = await memberRecipeSlugs(context.db, data.collectionId);
 		await purgeAfterWrite(context.request, {
 			collectionSlugs: [collection.slug],
+			recipeCollectionPairs: memberSlugs.map((recipeSlug) => ({
+				recipeSlug,
+				collectionSlug: collection.slug,
+			})),
 		});
 
 		return {
@@ -330,6 +362,14 @@ export const adminRemoveCollectionItem = createServerFn({ method: "POST" })
 			session.user.id,
 		);
 
+		// 削除後は member 一覧から消えるため、対象レシピ自身の
+		// /recipes/$slug?collection=$slug も破棄できるよう、削除前に slug を控える
+		// （PRレビュー指摘）。
+		const removedRecipe = await context.db.query.recipes.findFirst({
+			where: eq(recipes.id, data.recipeId),
+			columns: { slug: true },
+		});
+
 		await context.db
 			.delete(collectionItems)
 			.where(
@@ -340,8 +380,21 @@ export const adminRemoveCollectionItem = createServerFn({ method: "POST" })
 			);
 
 		await touchCollection(context.db, collection.id);
+		// 残りのメンバーも削除によって前後ナビゲーションが変わり得るため、
+		// あわせて破棄する。
+		const remainingSlugs = await memberRecipeSlugs(
+			context.db,
+			data.collectionId,
+		);
+		const affectedSlugs = removedRecipe
+			? [...remainingSlugs, removedRecipe.slug]
+			: remainingSlugs;
 		await purgeAfterWrite(context.request, {
 			collectionSlugs: [collection.slug],
+			recipeCollectionPairs: affectedSlugs.map((recipeSlug) => ({
+				recipeSlug,
+				collectionSlug: collection.slug,
+			})),
 		});
 	});
 
@@ -380,10 +433,15 @@ export const adminReorderCollectionItems = createServerFn({ method: "POST" })
 			.where(eq(collectionItems.collectionId, data.collectionId));
 		const existingIds = new Set(existing.map((row) => row.recipeId));
 
-		// 対象コレクションに属さない ID が混ざっていないかを検証してから並び替える
+		// 対象コレクションに属さない ID が混ざっていないか、重複が無いかを
+		// 検証してから並び替える。長さと存在チェックだけでは重複を弾けない
+		// （2件のコレクションに [idA, idA] を渡すと長さ・存在チェックの両方を
+		// 通過し、idA が2回更新されて idB の並び順が古いまま残る。PRレビュー指摘）。
+		const submittedIds = new Set(data.orderedRecipeIds);
 		if (
-			data.orderedRecipeIds.length !== existingIds.size ||
-			!data.orderedRecipeIds.every((id) => existingIds.has(id))
+			submittedIds.size !== data.orderedRecipeIds.length ||
+			submittedIds.size !== existingIds.size ||
+			![...submittedIds].every((id) => existingIds.has(id))
 		) {
 			throw new Error("並び替えに失敗しました");
 		}
@@ -407,7 +465,15 @@ export const adminReorderCollectionItems = createServerFn({ method: "POST" })
 		});
 
 		await touchCollection(context.db, collection.id);
+		// 並び替えで全メンバーの前後ナビゲーションが変わり得るため、
+		// メンバー全員の /recipes/$slug?collection=$slug も破棄する
+		// （PRレビュー指摘）。
+		const memberSlugs = await memberRecipeSlugs(context.db, data.collectionId);
 		await purgeAfterWrite(context.request, {
 			collectionSlugs: [collection.slug],
+			recipeCollectionPairs: memberSlugs.map((recipeSlug) => ({
+				recipeSlug,
+				collectionSlug: collection.slug,
+			})),
 		});
 	});

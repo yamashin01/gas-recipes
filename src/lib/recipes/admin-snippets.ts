@@ -224,10 +224,14 @@ export const adminReorderSnippets = createServerFn({ method: "POST" })
 			.where(eq(codeSnippets.recipeId, data.recipeId));
 		const existingIds = new Set(existing.map((row) => row.id));
 
-		// 対象レシピに属さない ID が混ざっていないかを検証してから並び替える
+		// 対象レシピに属さない ID が混ざっていないか、重複が無いかを検証してから
+		// 並び替える。長さと存在チェックだけでは重複を弾けない（admin-collections.ts
+		// の adminReorderCollectionItems と同じ穴。PRレビュー指摘で発覚）。
+		const submittedIds = new Set(data.orderedIds);
 		if (
-			data.orderedIds.length !== existingIds.size ||
-			!data.orderedIds.every((id) => existingIds.has(id))
+			submittedIds.size !== data.orderedIds.length ||
+			submittedIds.size !== existingIds.size ||
+			![...submittedIds].every((id) => existingIds.has(id))
 		) {
 			throw new Error("スニペットの並び替えに失敗しました");
 		}

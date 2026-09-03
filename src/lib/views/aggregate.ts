@@ -10,6 +10,13 @@ interface PendingIncrement {
 	count: number;
 }
 
+// 1回の cron 実行で処理するキー数の上限。1キーあたり最大3回の KV 操作
+// （スナップショット取得・最終確認取得・put/delete）に加え list() 自体の
+// 1回で、Workers の 1 invocation あたり 1,000 回という上限に収まるよう
+// 300 に抑える（PRレビュー指摘：list() は最大1,000件返し得るため無制限だと
+// 上限を超える）。取りこぼした分は翌日以降の cron で処理される。
+const MAX_KEYS_PER_RUN = 300;
+
 // Cron Triggers から日次で呼び出す閲覧数の集計（issue #21・PRレビュー指摘）。
 // 閲覧のあったレシピの分だけ存在する KV カウンタを env.VIEW_COUNTS_KV.list()
 // で列挙して recipes.view_count へ反映する。全レシピを DB から読んで1件ずつ
@@ -19,6 +26,7 @@ interface PendingIncrement {
 export async function aggregateDailyViewCounts(): Promise<void> {
 	const list = await env.VIEW_COUNTS_KV.list({
 		prefix: VIEW_COUNT_KEY_PREFIX,
+		limit: MAX_KEYS_PER_RUN,
 	});
 	if (list.keys.length === 0) {
 		return;

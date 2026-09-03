@@ -320,11 +320,17 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 
 		const tagSlugs = await syncRecipeTags(context.db, data.id, data.tags);
 
-		// slug を変えた場合は旧 URL のキャッシュも破棄する
+		// slug を変えた場合は旧 URL のキャッシュも破棄する。/recipes/$slug は
+		// ?collection=$slug 付きだと別キャッシュキーになるため
+		// （PRレビュー指摘）、所属コレックションごとに新旧両方の slug で破棄する。
 		await purgeAfterWrite(context.request, {
 			recipeSlugs: [data.slug, current.slug],
 			tagSlugs: [...previousTagSlugs, ...tagSlugs],
 			collectionSlugs,
+			recipeCollectionPairs: collectionSlugs.flatMap((collectionSlug) => [
+				{ recipeSlug: data.slug, collectionSlug },
+				{ recipeSlug: current.slug, collectionSlug },
+			]),
 		});
 
 		return { id: data.id };
@@ -362,5 +368,9 @@ export const adminDeleteRecipe = createServerFn({ method: "POST" })
 			recipeSlugs: [current.slug],
 			tagSlugs,
 			collectionSlugs,
+			recipeCollectionPairs: collectionSlugs.map((collectionSlug) => ({
+				recipeSlug: current.slug,
+				collectionSlug,
+			})),
 		});
 	});

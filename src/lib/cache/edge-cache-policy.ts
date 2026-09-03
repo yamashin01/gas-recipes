@@ -116,4 +116,12 @@ export interface PurgeTargets {
 	tagSlugs?: string[];
 	/** 更新・削除されたコレクションの slug（旧 slug も含める） */
 	collectionSlugs?: string[];
+	/**
+	 * `/recipes/$slug?collection=$collectionSlug`（コレクション経由で開いた
+	 * ときの前後ナビゲーション付きページ）の組み合わせ。この URL は
+	 * `/recipes/$slug` とは別のキャッシュキーになるため、recipeSlugs /
+	 * collectionSlugs の破棄だけでは古いナビゲーション・シリーズ名が残る
+	 * （PRレビュー指摘）。
+	 */
+	recipeCollectionPairs?: { recipeSlug: string; collectionSlug: string }[];
 }

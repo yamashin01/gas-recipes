@@ -38,6 +38,12 @@ export async function purgePublicCache(
 	for (const slug of targets.collectionSlugs ?? []) {
 		paths.add(`/collections/${encodeURIComponent(slug)}`);
 	}
+	for (const { recipeSlug, collectionSlug } of targets.recipeCollectionPairs ??
+		[]) {
+		paths.add(
+			`/recipes/${encodeURIComponent(recipeSlug)}?collection=${encodeURIComponent(collectionSlug)}`,
+		);
+	}
 
 	await Promise.all(
 		Array.from(paths, (path) =>
