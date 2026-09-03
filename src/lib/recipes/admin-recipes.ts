@@ -61,28 +61,27 @@ async function currentTagSlugs(db: Db, recipeId: string): Promise<string[]> {
 }
 
 // レシピのタグ付けを丸ごと置き換える。MVP では差分更新より単純さを優先する。
-// neon-http ドライバは db.transaction() 非対応のため（docs/architecture.md §2）、
-// 削除と挿入は db.batch() で1回の HTTP リクエスト内のトランザクションにまとめ、
-// 途中失敗でタグ関連だけが消えた状態にならないようにする。
+// 削除と挿入を db.transaction() でまとめ、途中失敗でタグ関連だけが消えた
+// 状態にならないようにする（node-postgres ドライバは db.transaction() を
+// サポートする。docs/architecture.md §2、issue #22）。
 async function syncRecipeTags(
 	db: Db,
 	recipeId: string,
 	tagNames: string[],
 ): Promise<string[]> {
 	const { ids, slugs } = await resolveTagIds(db, tagNames);
-	const deleteExisting = db
-		.delete(recipeTags)
-		.where(eq(recipeTags.recipeId, recipeId));
 
 	if (ids.length === 0) {
-		await deleteExisting;
+		await db.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId));
 		return slugs;
 	}
 
-	await db.batch([
-		deleteExisting,
-		db.insert(recipeTags).values(ids.map((tagId) => ({ recipeId, tagId }))),
-	]);
+	await db.transaction(async (tx) => {
+		await tx.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId));
+		await tx
+			.insert(recipeTags)
+			.values(ids.map((tagId) => ({ recipeId, tagId })));
+	});
 	return slugs;
 }
 
@@ -266,33 +265,36 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 		// タグを差し替える前に、旧タグページもキャッシュ破棄の対象に含める
 		const previousTagSlugs = await currentTagSlugs(context.db, data.id);
 
-		const updateRecipe = context.db
-			.update(recipes)
-			.set({
-				title: data.title,
-				slug: data.slug,
-				summary: data.summary,
-				bodyMd: data.bodyMd,
-				status: data.status,
-				publishedAt,
-				updatedAt: new Date(),
-			})
-			.where(eq(recipes.id, data.id));
+		const recipeUpdateValues = {
+			title: data.title,
+			slug: data.slug,
+			summary: data.summary,
+			bodyMd: data.bodyMd,
+			status: data.status,
+			publishedAt,
+			updatedAt: new Date(),
+		};
 
 		// 本文が変わる更新だけ、編集前の本文をリビジョンとして残す
 		// （誤編集からのロールバック手段。docs/proposal.md §5.1、issue #20）。
-		// neon-http は db.transaction() 非対応のため db.batch() でまとめる
-		// （syncRecipeTags と同じ方針）。
+		// node-postgres は db.transaction() をサポートするため、Hyperdrive 切り替え
+		// 後はこちらを使う（neon-http 時代の db.batch() から変更。issue #22）。
 		if (data.bodyMd !== current.bodyMd) {
-			await context.db.batch([
-				context.db.insert(recipeRevisions).values({
+			await context.db.transaction(async (tx) => {
+				await tx.insert(recipeRevisions).values({
 					recipeId: data.id,
 					bodyMd: current.bodyMd,
-				}),
-				updateRecipe,
-			]);
+				});
+				await tx
+					.update(recipes)
+					.set(recipeUpdateValues)
+					.where(eq(recipes.id, data.id));
+			});
 		} else {
-			await updateRecipe;
+			await context.db
+				.update(recipes)
+				.set(recipeUpdateValues)
+				.where(eq(recipes.id, data.id));
 		}
 
 		const tagSlugs = await syncRecipeTags(context.db, data.id, data.tags);

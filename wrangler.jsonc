@@ -34,5 +34,15 @@
   // 閲覧数の日次集計（issue #21）。18:00 UTC = 3:00 JST（負荷の低い時間帯）。
   "triggers": {
     "crons": ["0 18 * * *"]
-  }
+  },
+  // Neon への接続を Hyperdrive 経由に切り替える（@neondatabase/serverless の
+  // HTTP モードとは併用しない。docs/architecture.md §2、issue #22）。
+  // `wrangler hyperdrive create gas-recipes-db --connection-string="<Neon の
+  // 直接接続文字列>"` で作成した id に置き換える。
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_CONFIG_ID"
+    }
+  ]
 }

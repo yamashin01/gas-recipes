@@ -388,31 +388,23 @@ export const adminReorderCollectionItems = createServerFn({ method: "POST" })
 			throw new Error("並び替えに失敗しました");
 		}
 
-		// neon-http は db.transaction() 非対応のため、db.batch() で1リクエストに
-		// まとめる（admin-snippets.ts の adminReorderSnippets と同じ方針）。
-		const [firstId, ...restIds] = data.orderedRecipeIds;
-		await context.db.batch([
-			context.db
-				.update(collectionItems)
-				.set({ sortOrder: 0 })
-				.where(
-					and(
-						eq(collectionItems.collectionId, data.collectionId),
-						eq(collectionItems.recipeId, firstId),
-					),
-				),
-			...restIds.map((id, index) =>
-				context.db
+		// node-postgres は db.transaction() をサポートするため、Hyperdrive 切り替え
+		// 後はこちらで1本のトランザクションにまとめる（neon-http 時代の
+		// db.batch() から変更。admin-snippets.ts の adminReorderSnippets と
+		// 同じ方針。issue #22）。
+		await context.db.transaction(async (tx) => {
+			for (const [index, id] of data.orderedRecipeIds.entries()) {
+				await tx
 					.update(collectionItems)
-					.set({ sortOrder: index + 1 })
+					.set({ sortOrder: index })
 					.where(
 						and(
 							eq(collectionItems.collectionId, data.collectionId),
 							eq(collectionItems.recipeId, id),
 						),
-					),
-			),
-		]);
+					);
+			}
+		});
 
 		await touchCollection(context.db, collection.id);
 		await purgeAfterWrite(context.request, {

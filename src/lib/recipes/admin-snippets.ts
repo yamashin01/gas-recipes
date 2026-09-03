@@ -232,23 +232,17 @@ export const adminReorderSnippets = createServerFn({ method: "POST" })
 			throw new Error("スニペットの並び替えに失敗しました");
 		}
 
-		// neon-http は HTTP 経由のためリクエストごとにオーバーヘッドがある。
-		// Promise.all で N 回リクエストするとスニペット数に比例して増えるため、
-		// db.batch() で1リクエストにまとめる（db.transaction() 非対応の代替。
-		// docs/architecture.md §2、syncRecipeTags と同じ方針）。
-		const [firstId, ...restIds] = data.orderedIds;
-		await context.db.batch([
-			context.db
-				.update(codeSnippets)
-				.set({ sortOrder: 0 })
-				.where(eq(codeSnippets.id, firstId)),
-			...restIds.map((id, index) =>
-				context.db
+		// node-postgres は db.transaction() をサポートするため、Hyperdrive 切り替え
+		// 後はこちらで1本のトランザクションにまとめる（neon-http 時代の
+		// db.batch() から変更。docs/architecture.md §2、issue #22）。
+		await context.db.transaction(async (tx) => {
+			for (const [index, id] of data.orderedIds.entries()) {
+				await tx
 					.update(codeSnippets)
-					.set({ sortOrder: index + 1 })
-					.where(eq(codeSnippets.id, id)),
-			),
-		]);
+					.set({ sortOrder: index })
+					.where(eq(codeSnippets.id, id));
+			}
+		});
 
 		await touchRecipe(context.db, recipe.id);
 		await purgeAfterWrite(context.request, { recipeSlugs: [recipe.slug] });

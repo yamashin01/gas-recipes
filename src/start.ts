@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env, waitUntil } from "cloudflare:workers";
 import { createMiddleware, createStart } from "@tanstack/react-start";
 import type { Db } from "./db/client";
 import { createDb } from "./db/client";
@@ -33,7 +33,8 @@ declare module "@tanstack/react-router" {
 // モジュールトップレベルでは初期化できない。
 const authRequestMiddleware = createMiddleware({ type: "request" }).server(
 	async ({ request, next }) => {
-		const db = createDb(env.DATABASE_URL);
+		// Hyperdrive が発行するプール接続文字列（issue #22）。
+		const db = createDb(env.HYPERDRIVE.connectionString);
 		const auth = createAuth(db, env.SESSION_KV, {
 			baseURL: env.BETTER_AUTH_URL,
 			secret: env.BETTER_AUTH_SECRET,
@@ -41,7 +42,13 @@ const authRequestMiddleware = createMiddleware({ type: "request" }).server(
 			googleClientSecret: env.GOOGLE_CLIENT_SECRET,
 		});
 
-		return next({ context: { db, auth, request } });
+		try {
+			return await next({ context: { db, auth, request } });
+		} finally {
+			// node-postgres の Pool はリクエストの終わりに閉じる（Cloudflare の
+			// Hyperdrive + node-postgres 推奨パターン）。レスポンスは待たせない。
+			waitUntil(db.$client.end());
+		}
 	},
 );
 

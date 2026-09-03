@@ -77,24 +77,27 @@ export const adminRollbackRecipeRevision = createServerFn({ method: "POST" })
 			throw new Error("リビジョンが見つかりません");
 		}
 
-		const updateRecipe = context.db
-			.update(recipes)
-			.set({ bodyMd: revision.bodyMd, updatedAt: new Date() })
-			.where(eq(recipes.id, data.recipeId));
-
 		// 復元前の本文も、通常の更新と同じくリビジョンとして残す
 		// （復元自体を取り消せるようにする）。復元先と現在の本文が同じ場合は
-		// 何もしない（無意味なリビジョンを積まない）。
+		// 何もしない（無意味なリビジョンを積まない）。node-postgres は
+		// db.transaction() をサポートするため、Hyperdrive 切り替え後はこちらを
+		// 使う（neon-http 時代の db.batch() から変更。issue #22）。
 		if (revision.bodyMd !== recipe.bodyMd) {
-			await context.db.batch([
-				context.db.insert(recipeRevisions).values({
+			await context.db.transaction(async (tx) => {
+				await tx.insert(recipeRevisions).values({
 					recipeId: data.recipeId,
 					bodyMd: recipe.bodyMd,
-				}),
-				updateRecipe,
-			]);
+				});
+				await tx
+					.update(recipes)
+					.set({ bodyMd: revision.bodyMd, updatedAt: new Date() })
+					.where(eq(recipes.id, data.recipeId));
+			});
 		} else {
-			await updateRecipe;
+			await context.db
+				.update(recipes)
+				.set({ bodyMd: revision.bodyMd, updatedAt: new Date() })
+				.where(eq(recipes.id, data.recipeId));
 		}
 
 		await purgeAfterWrite(context.request, { recipeSlugs: [recipe.slug] });
