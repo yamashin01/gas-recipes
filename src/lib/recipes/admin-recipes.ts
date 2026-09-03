@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
-import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
+import {
+	codeSnippets,
+	recipeRevisions,
+	recipes,
+	recipeTags,
+	tags,
+} from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
 import { purgeAfterWrite } from "../cache/public-cache";
 import { slugifyTagName } from "./slugify";
@@ -228,7 +234,13 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 
 		const current = await context.db.query.recipes.findFirst({
 			where: eq(recipes.id, data.id),
-			columns: { id: true, authorId: true, slug: true, publishedAt: true },
+			columns: {
+				id: true,
+				authorId: true,
+				slug: true,
+				publishedAt: true,
+				bodyMd: true,
+			},
 		});
 		if (!current || current.authorId !== session.user.id) {
 			throw new Error("レシピが見つかりません");
@@ -254,7 +266,7 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 		// タグを差し替える前に、旧タグページもキャッシュ破棄の対象に含める
 		const previousTagSlugs = await currentTagSlugs(context.db, data.id);
 
-		await context.db
+		const updateRecipe = context.db
 			.update(recipes)
 			.set({
 				title: data.title,
@@ -266,6 +278,22 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 				updatedAt: new Date(),
 			})
 			.where(eq(recipes.id, data.id));
+
+		// 本文が変わる更新だけ、編集前の本文をリビジョンとして残す
+		// （誤編集からのロールバック手段。docs/proposal.md §5.1、issue #20）。
+		// neon-http は db.transaction() 非対応のため db.batch() でまとめる
+		// （syncRecipeTags と同じ方針）。
+		if (data.bodyMd !== current.bodyMd) {
+			await context.db.batch([
+				context.db.insert(recipeRevisions).values({
+					recipeId: data.id,
+					bodyMd: current.bodyMd,
+				}),
+				updateRecipe,
+			]);
+		} else {
+			await updateRecipe;
+		}
 
 		const tagSlugs = await syncRecipeTags(context.db, data.id, data.tags);
 

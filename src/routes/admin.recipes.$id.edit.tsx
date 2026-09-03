@@ -1,4 +1,9 @@
-import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	notFound,
+	useNavigate,
+} from "@tanstack/react-router";
 import { RecipeForm } from "../components/admin/recipe-form";
 import { SnippetManager } from "../components/admin/snippet-manager";
 import {
@@ -24,7 +29,16 @@ function EditRecipePage() {
 
 	return (
 		<div className="p-8">
-			<h1 className="text-2xl font-bold">レシピを編集</h1>
+			<div className="flex items-center justify-between">
+				<h1 className="text-2xl font-bold">レシピを編集</h1>
+				<Link
+					to="/admin/recipes/$id/revisions"
+					params={{ id: recipe.id }}
+					className="text-sm underline"
+				>
+					リビジョン履歴
+				</Link>
+			</div>
 			<RecipeForm
 				key={recipe.id}
 				submitLabel="保存する"

@@ -212,6 +212,26 @@ export const codeSnippets = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// recipe_revisions（Phase 2、docs/proposal.md §3.2・§5.1）
+// ---------------------------------------------------------------------------
+// 更新のたびに「編集前」の本文を1件保存する。誤編集からのロールバック手段
+// として使う（issue #20）。
+export const recipeRevisions = pgTable(
+	"recipe_revisions",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		recipeId: uuid("recipe_id")
+			.notNull()
+			.references(() => recipes.id, { onDelete: "cascade" }),
+		bodyMd: text("body_md").notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [index("recipe_revisions_recipe_id_idx").on(table.recipeId)],
+);
+
+// ---------------------------------------------------------------------------
 // tags / recipe_tags
 // ---------------------------------------------------------------------------
 export const tags = pgTable("tags", {
@@ -311,6 +331,7 @@ export const recipesRelations = relations(recipes, ({ one, many }) => ({
 	codeSnippets: many(codeSnippets),
 	recipeTags: many(recipeTags),
 	collectionItems: many(collectionItems),
+	recipeRevisions: many(recipeRevisions),
 }));
 
 export const codeSnippetsRelations = relations(codeSnippets, ({ one }) => ({
@@ -352,6 +373,16 @@ export const collectionItemsRelations = relations(
 		}),
 		recipe: one(recipes, {
 			fields: [collectionItems.recipeId],
+			references: [recipes.id],
+		}),
+	}),
+);
+
+export const recipeRevisionsRelations = relations(
+	recipeRevisions,
+	({ one }) => ({
+		recipe: one(recipes, {
+			fields: [recipeRevisions.recipeId],
 			references: [recipes.id],
 		}),
 	}),

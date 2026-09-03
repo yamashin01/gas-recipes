@@ -12,5 +12,14 @@
       "binding": "SESSION_KV",
       "id": "7e17c40a7f164defb93a2ef341112078"
     }
+  ],
+  // レシピ本文に埋め込む画像の保存先（docs/proposal.md §3.2・§5.1、issue #20）。
+  // `wrangler r2 bucket create gas-recipes-images` で作成したバケット名に置き換える。
+  // 配信は R2 を直接公開せず、/images/$key（src/routes/images.$key.ts）経由で行う。
+  "r2_buckets": [
+    {
+      "binding": "RECIPE_IMAGES",
+      "bucket_name": "gas-recipes-images"
+    }
   ]
 }

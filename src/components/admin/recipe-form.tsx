@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { slugify } from "../../lib/recipes/slugify";
+import { uploadRecipeImage } from "../../lib/recipes/upload-image";
 import type { RecipeStatus } from "../../lib/recipes/validate";
 
 export interface RecipeFormOutput {
@@ -46,11 +47,35 @@ export function RecipeForm({
 	);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [uploadingImage, setUploadingImage] = useState(false);
+	const [imageError, setImageError] = useState<string | null>(null);
 
 	function handleTitleChange(value: string) {
 		setTitle(value);
 		if (!slugTouched) {
 			setSlug(slugify(value));
+		}
+	}
+
+	async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) return;
+
+		setImageError(null);
+		setUploadingImage(true);
+		try {
+			const url = await uploadRecipeImage(file);
+			setBodyMd(
+				(prev) =>
+					`${prev}${prev && !prev.endsWith("\n") ? "\n" : ""}\n![](${url})\n`,
+			);
+		} catch (err) {
+			setImageError(
+				err instanceof Error ? err.message : "画像のアップロードに失敗しました",
+			);
+		} finally {
+			setUploadingImage(false);
 		}
 	}
 
@@ -122,7 +147,23 @@ export function RecipeForm({
 			</label>
 
 			<label className="flex flex-col gap-1">
-				<span className="text-sm font-medium">本文（Markdown）</span>
+				<div className="flex items-center justify-between">
+					<span className="text-sm font-medium">本文（Markdown）</span>
+					<div className="flex items-center gap-2 text-xs text-gray-500">
+						{imageError && <span className="text-red-600">{imageError}</span>}
+						{uploadingImage && <span>アップロード中…</span>}
+						<label className="cursor-pointer underline">
+							画像をアップロード
+							<input
+								type="file"
+								accept="image/png,image/jpeg,image/gif,image/webp"
+								disabled={uploadingImage}
+								onChange={handleImageUpload}
+								className="hidden"
+							/>
+						</label>
+					</div>
+				</div>
 				<textarea
 					required
 					className="rounded border px-3 py-2 font-mono text-sm"
