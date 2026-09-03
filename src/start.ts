@@ -14,6 +14,13 @@ export interface AppRequestContext {
 	// サーバー専用 import で、クライアントバンドルに含まれるモジュールからは
 	// 使えないため（issue #18）。
 	request: Request;
+	// 閲覧数カウンタ用の KV バインディング（issue #21）。db/auth と同様に
+	// context 経由で渡す。"cloudflare:workers" の env を直接 import すると、
+	// その import 元のモジュールがクライアントコンポーネントから import
+	// された際にクライアントバンドルにも含まれてビルドが失敗するため
+	// （views/record-view.ts の recordView は recipes.$slug.tsx から
+	// import される。public-cache.ts の同種のコメントも参照）。
+	viewCountsKv: KVNamespace;
 }
 
 // server functions・server routes の context に AppRequestContext の型を
@@ -43,7 +50,9 @@ const authRequestMiddleware = createMiddleware({ type: "request" }).server(
 		});
 
 		try {
-			return await next({ context: { db, auth, request } });
+			return await next({
+				context: { db, auth, request, viewCountsKv: env.VIEW_COUNTS_KV },
+			});
 		} finally {
 			// node-postgres の Pool はリクエストの終わりに閉じる（Cloudflare の
 			// Hyperdrive + node-postgres 推奨パターン）。レスポンスは待たせない。

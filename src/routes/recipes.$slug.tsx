@@ -1,10 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { CodeBlock } from "../components/recipe/code-block";
 import { PUBLIC_CACHE_CONTROL } from "../lib/cache/edge-cache-policy";
 import { getCollectionNavigation } from "../lib/collections/public-collections";
 import { renderMarkdown } from "../lib/recipes/markdown";
 import { getPublishedRecipeBySlug } from "../lib/recipes/public-recipes";
 import { seo } from "../lib/seo/site";
+import { recordView } from "../lib/views/record-view";
 
 interface RecipeSearch {
 	collection?: string;
@@ -25,16 +27,20 @@ export const Route = createFileRoute("/recipes/$slug")({
 	validateSearch,
 	loaderDeps: ({ search }) => ({ collection: search.collection }),
 	loader: async ({ params, deps }) => {
-		const recipe = await getPublishedRecipeBySlug({ data: params.slug });
+		// コレクション経由で開いた場合のみ前後ナビゲーション用のデータを取る。
+		// getCollectionNavigation は recipe の結果に依存しないため、直列に
+		// 待たず並列に呼ぶ（PRレビュー指摘）。
+		const [recipe, navigation] = await Promise.all([
+			getPublishedRecipeBySlug({ data: params.slug }),
+			deps.collection
+				? getCollectionNavigation({
+						data: { collectionSlug: deps.collection, recipeSlug: params.slug },
+					})
+				: Promise.resolve(null),
+		]);
 		if (!recipe) {
 			throw notFound();
 		}
-		// コレクション経由で開いた場合のみ前後ナビゲーション用のデータを取る
-		const navigation = deps.collection
-			? await getCollectionNavigation({
-					data: { collectionSlug: deps.collection, recipeSlug: params.slug },
-				})
-			: null;
 		return { recipe, navigation };
 	},
 	headers: () => ({ "cache-control": PUBLIC_CACHE_CONTROL }),
@@ -53,6 +59,15 @@ export const Route = createFileRoute("/recipes/$slug")({
 function RecipeDetailPage() {
 	const { recipe, navigation } = Route.useLoaderData();
 	const html = renderMarkdown(recipe.bodyMd);
+
+	// マウント時（＝実際に開いたとき）だけ記録する。ホバーによる loader の
+	// preload では呼ばれない（recordView 側のコメント参照。PRレビュー指摘）。
+	const recordedRecipeId = useRef<string | null>(null);
+	useEffect(() => {
+		if (recordedRecipeId.current === recipe.id) return;
+		recordedRecipeId.current = recipe.id;
+		recordView({ data: recipe.id }).catch(() => {});
+	}, [recipe.id]);
 
 	return (
 		<div className="p-8">

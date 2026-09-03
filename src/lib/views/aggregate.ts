@@ -2,46 +2,83 @@ import { env } from "cloudflare:workers";
 import { eq, sql } from "drizzle-orm";
 import { createDb } from "../../db/client";
 import { recipes } from "../../db/schema";
-import { recipeViewCountKey } from "./record-view";
+import { recipeIdFromViewCountKey, VIEW_COUNT_KEY_PREFIX } from "./record-view";
 
-// Cron Triggers から日次で呼び出す閲覧数の集計（issue #21）。KV に溜まった
-// レシピごとのカウンタを recipes.view_count へ反映し、KV 側は 0 に戻す。
+interface PendingIncrement {
+	key: string;
+	recipeId: string;
+	count: number;
+}
+
+// Cron Triggers から日次で呼び出す閲覧数の集計（issue #21・PRレビュー指摘）。
+// 閲覧のあったレシピの分だけ存在する KV カウンタを env.VIEW_COUNTS_KV.list()
+// で列挙して recipes.view_count へ反映する。全レシピを DB から読んで1件ずつ
+// KV を get/put していた実装は、レシピ数に比例して KV 操作数が増え
+// （Workers は 1 invocation あたり KV 操作 1,000 回が上限）、閲覧の無い
+// レシピの分まで無駄に操作するため置き換えた。
 export async function aggregateDailyViewCounts(): Promise<void> {
-	const db = createDb(env.HYPERDRIVE.connectionString);
+	const list = await env.VIEW_COUNTS_KV.list({
+		prefix: VIEW_COUNT_KEY_PREFIX,
+	});
+	if (list.keys.length === 0) {
+		return;
+	}
 
-	try {
-		const allRecipes = await db.select({ id: recipes.id }).from(recipes);
-
-		const increments: { id: string; count: number }[] = [];
-		for (const recipe of allRecipes) {
-			const key = recipeViewCountKey(recipe.id);
-			const raw = await env.VIEW_COUNTS_KV.get(key);
+	const candidates = await Promise.all(
+		list.keys.map(async (key): Promise<PendingIncrement | null> => {
+			const raw = await env.VIEW_COUNTS_KV.get(key.name);
 			const count = raw ? Number.parseInt(raw, 10) : 0;
-			if (!Number.isFinite(count) || count <= 0) continue;
+			if (!Number.isFinite(count) || count <= 0) return null;
+			return {
+				key: key.name,
+				recipeId: recipeIdFromViewCountKey(key.name),
+				count,
+			};
+		}),
+	);
+	const increments = candidates.filter(
+		(candidate): candidate is PendingIncrement => candidate !== null,
+	);
+	if (increments.length === 0) {
+		return;
+	}
 
-			// 集計後は 0 にリセットする（二重集計を避ける）。カウンタの取得と
-			// リセットの間に新しい閲覧が挟まるレースは許容する（record-view.ts と
-			// 同じ方針）。
-			await env.VIEW_COUNTS_KV.put(key, "0");
-			increments.push({ id: recipe.id, count });
-		}
-
-		if (increments.length === 0) {
-			return;
-		}
-
+	const db = createDb(env.HYPERDRIVE.connectionString);
+	try {
 		// node-postgres は db.transaction() をサポートするため、Hyperdrive
 		// 切り替え後はこちらを使う（neon-http 時代の db.batch() から変更。
 		// docs/architecture.md §2、issue #22）。
+		//
+		// DB への反映を KV のクリアより先に行う。逆順（先に KV をリセット）
+		// だと、この transaction が失敗したときに集計対象だった閲覧数が
+		// どこにも残らず失われる（PRレビュー指摘）。
 		await db.transaction(async (tx) => {
-			for (const { id, count } of increments) {
+			for (const { recipeId, count } of increments) {
 				await tx
 					.update(recipes)
 					.set({ viewCount: sql`${recipes.viewCount} + ${count}` })
-					.where(eq(recipes.id, id));
+					.where(eq(recipes.id, recipeId));
 			}
 		});
 	} finally {
 		await db.$client.end();
 	}
+
+	// DB 反映に成功した分だけ KV を減算する。スナップショット取得後に届いた
+	// 新しい閲覧を消さないよう、値を読み直してから確定した分だけ引く
+	// （0 以下になったキーは削除し、次回の list() の対象から外す）。
+	// ここでの取得〜書き込みの間に生じるレースは許容する（record-view.ts と
+	// 同じ方針）。
+	await Promise.all(
+		increments.map(async ({ key, count }) => {
+			const raw = await env.VIEW_COUNTS_KV.get(key);
+			const current = raw ? Number.parseInt(raw, 10) : 0;
+			const remaining = current - count;
+			if (remaining > 0) {
+				await env.VIEW_COUNTS_KV.put(key, String(remaining));
+			} else {
+				await env.VIEW_COUNTS_KV.delete(key);
+			}
+		}),
+	);
 }

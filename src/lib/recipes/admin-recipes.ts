@@ -3,6 +3,8 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import {
 	codeSnippets,
+	collectionItems,
+	collections,
 	recipeRevisions,
 	recipes,
 	recipeTags,
@@ -57,6 +59,22 @@ async function currentTagSlugs(db: Db, recipeId: string): Promise<string[]> {
 		.from(recipeTags)
 		.innerJoin(tags, eq(tags.id, recipeTags.tagId))
 		.where(eq(recipeTags.recipeId, recipeId));
+	return rows.map((row) => row.slug);
+}
+
+// キャッシュ破棄の対象になるコレクションページを知るため、このレシピが属する
+// コレクションの slug を引く（currentTagSlugs と同じ方針。PRレビュー指摘：
+// レシピの更新・削除がそれを含むコレクションページのキャッシュに反映されて
+// いなかった）。
+async function currentCollectionSlugs(
+	db: Db,
+	recipeId: string,
+): Promise<string[]> {
+	const rows = await db
+		.select({ slug: collections.slug })
+		.from(collectionItems)
+		.innerJoin(collections, eq(collections.id, collectionItems.collectionId))
+		.where(eq(collectionItems.recipeId, recipeId));
 	return rows.map((row) => row.slug);
 }
 
@@ -263,7 +281,10 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 				: current.publishedAt;
 
 		// タグを差し替える前に、旧タグページもキャッシュ破棄の対象に含める
-		const previousTagSlugs = await currentTagSlugs(context.db, data.id);
+		const [previousTagSlugs, collectionSlugs] = await Promise.all([
+			currentTagSlugs(context.db, data.id),
+			currentCollectionSlugs(context.db, data.id),
+		]);
 
 		const recipeUpdateValues = {
 			title: data.title,
@@ -303,6 +324,7 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 		await purgeAfterWrite(context.request, {
 			recipeSlugs: [data.slug, current.slug],
 			tagSlugs: [...previousTagSlugs, ...tagSlugs],
+			collectionSlugs,
 		});
 
 		return { id: data.id };
@@ -327,13 +349,18 @@ export const adminDeleteRecipe = createServerFn({ method: "POST" })
 			throw new Error("レシピが見つかりません");
 		}
 
-		const tagSlugs = await currentTagSlugs(context.db, data.id);
+		const [tagSlugs, collectionSlugs] = await Promise.all([
+			currentTagSlugs(context.db, data.id),
+			currentCollectionSlugs(context.db, data.id),
+		]);
 
-		// code_snippets・recipe_tags は ON DELETE CASCADE で追随して削除される
+		// code_snippets・recipe_tags・collection_items は ON DELETE CASCADE で
+		// 追随して削除される
 		await context.db.delete(recipes).where(eq(recipes.id, data.id));
 
 		await purgeAfterWrite(context.request, {
 			recipeSlugs: [current.slug],
 			tagSlugs,
+			collectionSlugs,
 		});
 	});

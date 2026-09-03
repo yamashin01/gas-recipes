@@ -1,9 +1,7 @@
-import { waitUntil } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
-import { recordRecipeView } from "../views/record-view";
 import { PUBLISHED } from "./published";
 import { isSnippetLanguage } from "./snippet-language";
 
@@ -190,10 +188,11 @@ export const getPublishedRecipeBySlug = createServerFn({ method: "GET" })
 			return null;
 		}
 
-		// 公開ページの応答を待たせない（issue #21）。エッジキャッシュ HIT 時は
-		// このハンドラ自体が呼ばれないため、キャッシュされている間の閲覧は
-		// 集計対象に含まれない（docs/architecture.md §4 の許容範囲内とみなす）。
-		waitUntil(recordRecipeView(recipe.id));
+		// 閲覧記録はここでは行わない。TanStack Router の defaultPreload: "intent"
+		// によりこの loader は <Link> へのホバーだけでも RPC として呼ばれるため、
+		// ここで記録すると実際に開いていないページまで加算されてしまう
+		// （PRレビュー指摘）。記録は recipes.$slug.tsx がマウント時に
+		// recordView（views/record-view.ts）を呼ぶ形にしている。
 
 		return {
 			id: recipe.id,

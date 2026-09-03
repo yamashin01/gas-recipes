@@ -27,10 +27,27 @@ TCP 前提の Hyperdrive のプーリングをバイパスしてしまう）。
 4. `pnpm run cf-typegen` を再実行し、`Env.HYPERDRIVE` の型を反映する
 5. `wrangler deploy` でデプロイする
 
-ローカル開発（`wrangler dev`）では、Hyperdrive はデフォルトでバインディング先の
-Postgres に直接つなぎに行く（開発用のローカルプロキシを使う場合は
+## プレースホルダー ID のままだと `wrangler dev` / `wrangler deploy` が失敗する
+
+`wrangler.jsonc` の `hyperdrive[0].id`（および `kv_namespaces` の
+`VIEW_COUNTS_KV`）はこのリポジトリではプレースホルダーのままになっている。
+Cloudflare のアカウント操作が必要で、この環境（セッション）からは実行できない
+ため、上記の手順1〜3をリポジトリ所有者が実施するまでは：
+
+- `wrangler deploy`（本番）は失敗する
+- `wrangler dev`（ローカル）も、Hyperdrive の設定を Cloudflare 側へ問い合わせ
+  に行くため失敗する
+
+`main` を常にデプロイ可能な状態に保つ（CLAUDE.md）ため、**このブランチを
+`main` にマージする前に上記の手順1〜4を実施し、実際の id に置き換えること。**
+
+ローカル開発だけ先に動かしたい場合は、`.dev.vars.example` にある
+`WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` を `.dev.vars` に
+コピーして Neon の直接接続文字列を設定すると、`hyperdrive[0].id` が未設定の
+ままでも `wrangler dev` はその接続文字列へ直接つなぎに行く（本番デプロイには
+実際の id への置き換えが別途必要）。詳細は
 [Cloudflare のドキュメント](https://developers.cloudflare.com/hyperdrive/configuration/local-development/)
-に従い `wrangler.jsonc` の `hyperdrive[0].localConnectionString` を設定する）。
+を参照。
 
 ## 切り替え前後のレイテンシ計測
 
