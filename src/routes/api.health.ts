@@ -5,17 +5,20 @@ import { sql } from "drizzle-orm";
 import { createDb } from "../db/client";
 
 // Phase 0 の完了条件（Drizzle 経由での Neon 接続確認）用のヘルスチェック。
+// Phase 2 以降は Hyperdrive 経由の接続確認になる（issue #22）。
 export const Route = createFileRoute("/api/health")({
 	server: {
 		handlers: {
 			GET: async () => {
+				const db = createDb(env.HYPERDRIVE.connectionString);
 				try {
-					const db = createDb(env.DATABASE_URL);
 					await db.execute(sql`select 1`);
 					return json({ status: "ok" });
 				} catch (error) {
 					console.error("[api/health] db connection failed", error);
 					return json({ status: "error" }, { status: 500 });
+				} finally {
+					await db.$client.end();
 				}
 			},
 		},

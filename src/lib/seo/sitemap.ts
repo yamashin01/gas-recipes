@@ -1,7 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "../../db/client";
-import { recipes, recipeTags, tags } from "../../db/schema";
-import { PUBLISHED } from "../recipes/public-recipes";
+import { collections, recipes, recipeTags, tags } from "../../db/schema";
+import { PUBLISHED_COLLECTION } from "../collections/public-collections";
+import { PUBLISHED } from "../recipes/published";
 
 // sitemap.xml / robots.txt の組み立て（issue #18）。
 // XML の生成は DB に依存しない純粋な関数に分け、ユニットテストの対象にする。
@@ -59,7 +60,7 @@ Sitemap: ${new URL("/sitemap.xml", origin).toString()}
 
 /** 公開ページ（トップ・一覧・レシピ詳細・タグ）のサイトマップ項目を集める。 */
 export async function collectSitemapEntries(db: Db): Promise<SitemapEntry[]> {
-	const [publishedRecipes, tagRows] = await Promise.all([
+	const [publishedRecipes, tagRows, collectionRows] = await Promise.all([
 		db
 			.select({ slug: recipes.slug, updatedAt: recipes.updatedAt })
 			.from(recipes)
@@ -72,6 +73,11 @@ export async function collectSitemapEntries(db: Db): Promise<SitemapEntry[]> {
 			.innerJoin(recipeTags, eq(recipeTags.tagId, tags.id))
 			.innerJoin(recipes, eq(recipes.id, recipeTags.recipeId))
 			.where(PUBLISHED),
+		db
+			.select({ slug: collections.slug, updatedAt: collections.updatedAt })
+			.from(collections)
+			.where(PUBLISHED_COLLECTION)
+			.orderBy(desc(collections.updatedAt)),
 	]);
 
 	const latestUpdate = publishedRecipes[0]?.updatedAt ?? null;
@@ -87,6 +93,11 @@ export async function collectSitemapEntries(db: Db): Promise<SitemapEntry[]> {
 		...tagRows.map((tag) => ({
 			path: `/tags/${encodeURIComponent(tag.slug)}`,
 			lastModified: latestUpdate,
+			changeFrequency: "weekly" as const,
+		})),
+		...collectionRows.map((collection) => ({
+			path: `/collections/${encodeURIComponent(collection.slug)}`,
+			lastModified: collection.updatedAt,
 			changeFrequency: "weekly" as const,
 		})),
 	];

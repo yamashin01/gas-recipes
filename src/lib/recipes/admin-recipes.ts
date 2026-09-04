@@ -1,7 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
-import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
+import {
+	codeSnippets,
+	collectionItems,
+	collections,
+	recipeRevisions,
+	recipes,
+	recipeTags,
+	tags,
+} from "../../db/schema";
 import { requireAdminContext } from "../auth/require-admin";
 import { purgeAfterWrite } from "../cache/public-cache";
 import { slugifyTagName } from "./slugify";
@@ -54,29 +62,44 @@ async function currentTagSlugs(db: Db, recipeId: string): Promise<string[]> {
 	return rows.map((row) => row.slug);
 }
 
+// キャッシュ破棄の対象になるコレクションページを知るため、このレシピが属する
+// コレクションの slug を引く（currentTagSlugs と同じ方針。PRレビュー指摘：
+// レシピの更新・削除がそれを含むコレクションページのキャッシュに反映されて
+// いなかった）。
+async function currentCollectionSlugs(
+	db: Db,
+	recipeId: string,
+): Promise<string[]> {
+	const rows = await db
+		.select({ slug: collections.slug })
+		.from(collectionItems)
+		.innerJoin(collections, eq(collections.id, collectionItems.collectionId))
+		.where(eq(collectionItems.recipeId, recipeId));
+	return rows.map((row) => row.slug);
+}
+
 // レシピのタグ付けを丸ごと置き換える。MVP では差分更新より単純さを優先する。
-// neon-http ドライバは db.transaction() 非対応のため（docs/architecture.md §2）、
-// 削除と挿入は db.batch() で1回の HTTP リクエスト内のトランザクションにまとめ、
-// 途中失敗でタグ関連だけが消えた状態にならないようにする。
+// 削除と挿入を db.transaction() でまとめ、途中失敗でタグ関連だけが消えた
+// 状態にならないようにする（node-postgres ドライバは db.transaction() を
+// サポートする。docs/architecture.md §2、issue #22）。
 async function syncRecipeTags(
 	db: Db,
 	recipeId: string,
 	tagNames: string[],
 ): Promise<string[]> {
 	const { ids, slugs } = await resolveTagIds(db, tagNames);
-	const deleteExisting = db
-		.delete(recipeTags)
-		.where(eq(recipeTags.recipeId, recipeId));
 
 	if (ids.length === 0) {
-		await deleteExisting;
+		await db.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId));
 		return slugs;
 	}
 
-	await db.batch([
-		deleteExisting,
-		db.insert(recipeTags).values(ids.map((tagId) => ({ recipeId, tagId }))),
-	]);
+	await db.transaction(async (tx) => {
+		await tx.delete(recipeTags).where(eq(recipeTags.recipeId, recipeId));
+		await tx
+			.insert(recipeTags)
+			.values(ids.map((tagId) => ({ recipeId, tagId })));
+	});
 	return slugs;
 }
 
@@ -228,7 +251,13 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 
 		const current = await context.db.query.recipes.findFirst({
 			where: eq(recipes.id, data.id),
-			columns: { id: true, authorId: true, slug: true, publishedAt: true },
+			columns: {
+				id: true,
+				authorId: true,
+				slug: true,
+				publishedAt: true,
+				bodyMd: true,
+			},
 		});
 		if (!current || current.authorId !== session.user.id) {
 			throw new Error("レシピが見つかりません");
@@ -252,27 +281,56 @@ export const adminUpdateRecipe = createServerFn({ method: "POST" })
 				: current.publishedAt;
 
 		// タグを差し替える前に、旧タグページもキャッシュ破棄の対象に含める
-		const previousTagSlugs = await currentTagSlugs(context.db, data.id);
+		const [previousTagSlugs, collectionSlugs] = await Promise.all([
+			currentTagSlugs(context.db, data.id),
+			currentCollectionSlugs(context.db, data.id),
+		]);
 
-		await context.db
-			.update(recipes)
-			.set({
-				title: data.title,
-				slug: data.slug,
-				summary: data.summary,
-				bodyMd: data.bodyMd,
-				status: data.status,
-				publishedAt,
-				updatedAt: new Date(),
-			})
-			.where(eq(recipes.id, data.id));
+		const recipeUpdateValues = {
+			title: data.title,
+			slug: data.slug,
+			summary: data.summary,
+			bodyMd: data.bodyMd,
+			status: data.status,
+			publishedAt,
+			updatedAt: new Date(),
+		};
+
+		// 本文が変わる更新だけ、編集前の本文をリビジョンとして残す
+		// （誤編集からのロールバック手段。docs/proposal.md §5.1、issue #20）。
+		// node-postgres は db.transaction() をサポートするため、Hyperdrive 切り替え
+		// 後はこちらを使う（neon-http 時代の db.batch() から変更。issue #22）。
+		if (data.bodyMd !== current.bodyMd) {
+			await context.db.transaction(async (tx) => {
+				await tx.insert(recipeRevisions).values({
+					recipeId: data.id,
+					bodyMd: current.bodyMd,
+				});
+				await tx
+					.update(recipes)
+					.set(recipeUpdateValues)
+					.where(eq(recipes.id, data.id));
+			});
+		} else {
+			await context.db
+				.update(recipes)
+				.set(recipeUpdateValues)
+				.where(eq(recipes.id, data.id));
+		}
 
 		const tagSlugs = await syncRecipeTags(context.db, data.id, data.tags);
 
-		// slug を変えた場合は旧 URL のキャッシュも破棄する
+		// slug を変えた場合は旧 URL のキャッシュも破棄する。/recipes/$slug は
+		// ?collection=$slug 付きだと別キャッシュキーになるため
+		// （PRレビュー指摘）、所属コレックションごとに新旧両方の slug で破棄する。
 		await purgeAfterWrite(context.request, {
 			recipeSlugs: [data.slug, current.slug],
 			tagSlugs: [...previousTagSlugs, ...tagSlugs],
+			collectionSlugs,
+			recipeCollectionPairs: collectionSlugs.flatMap((collectionSlug) => [
+				{ recipeSlug: data.slug, collectionSlug },
+				{ recipeSlug: current.slug, collectionSlug },
+			]),
 		});
 
 		return { id: data.id };
@@ -297,13 +355,22 @@ export const adminDeleteRecipe = createServerFn({ method: "POST" })
 			throw new Error("レシピが見つかりません");
 		}
 
-		const tagSlugs = await currentTagSlugs(context.db, data.id);
+		const [tagSlugs, collectionSlugs] = await Promise.all([
+			currentTagSlugs(context.db, data.id),
+			currentCollectionSlugs(context.db, data.id),
+		]);
 
-		// code_snippets・recipe_tags は ON DELETE CASCADE で追随して削除される
+		// code_snippets・recipe_tags・collection_items は ON DELETE CASCADE で
+		// 追随して削除される
 		await context.db.delete(recipes).where(eq(recipes.id, data.id));
 
 		await purgeAfterWrite(context.request, {
 			recipeSlugs: [current.slug],
 			tagSlugs,
+			collectionSlugs,
+			recipeCollectionPairs: collectionSlugs.map((collectionSlug) => ({
+				recipeSlug: current.slug,
+				collectionSlug,
+			})),
 		});
 	});

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
 	const { data: session, isPending } = authClient.useSession();
-	const { latestRecipes, popularTags } = Route.useLoaderData();
+	const { latestRecipes, popularRecipes, popularTags } = Route.useLoaderData();
 
 	return (
 		<div className="p-8">
@@ -85,6 +85,26 @@ function Home() {
 					)}
 				</div>
 			</section>
+
+			{popularRecipes.length > 0 && (
+				<section className="mt-10">
+					<div className="flex items-center justify-between">
+						<h2 className="text-xl font-bold">人気のレシピ</h2>
+						<Link
+							to="/recipes"
+							search={{ page: 1, sort: "popular" }}
+							className="text-sm underline"
+						>
+							すべて見る
+						</Link>
+					</div>
+					<div className="mt-4 flex flex-col gap-4">
+						{popularRecipes.map((recipe) => (
+							<RecipeCard key={recipe.id} recipe={recipe} />
+						))}
+					</div>
+				</section>
+			)}
 
 			{popularTags.length > 0 && (
 				<section className="mt-10">

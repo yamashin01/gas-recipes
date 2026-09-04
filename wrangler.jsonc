@@ -3,7 +3,10 @@
   "name": "gas-recipes",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  // Cron Triggers（scheduled ハンドラ）を追加するため、既定の
+  // `@tanstack/react-start/server-entry` をラップした自前のエントリを使う
+  // （src/worker-entry.ts、issue #21）。
+  "main": "src/worker-entry.ts",
   // BetterAuth の secondaryStorage（セッションキャッシュ）用。
   // `wrangler kv namespace create SESSION_KV` で作成した id に置き換える
   // （docs/proposal.md §7.1）。
@@ -11,6 +14,35 @@
     {
       "binding": "SESSION_KV",
       "id": "7e17c40a7f164defb93a2ef341112078"
+    },
+    // 閲覧数の日次集計用カウンタ（docs/proposal.md §3.2・§4.1、issue #21）。
+    // `wrangler kv namespace create VIEW_COUNTS_KV` で作成した id に置き換える。
+    {
+      "binding": "VIEW_COUNTS_KV",
+      "id": "cff0997be2874a858412ee34610b4729"
+    }
+  ],
+  // レシピ本文に埋め込む画像の保存先（docs/proposal.md §3.2・§5.1、issue #20）。
+  // `wrangler r2 bucket create gas-recipes-images` で作成したバケット名に置き換える。
+  // 配信は R2 を直接公開せず、/images/$key（src/routes/images.$key.ts）経由で行う。
+  "r2_buckets": [
+    {
+      "binding": "RECIPE_IMAGES",
+      "bucket_name": "gas-recipes-images"
+    }
+  ],
+  // 閲覧数の日次集計（issue #21）。18:00 UTC = 3:00 JST（負荷の低い時間帯）。
+  "triggers": {
+    "crons": ["0 18 * * *"]
+  },
+  // Neon への接続を Hyperdrive 経由に切り替える（@neondatabase/serverless の
+  // HTTP モードとは併用しない。docs/architecture.md §2、issue #22）。
+  // `wrangler hyperdrive create gas-recipes-db --connection-string="<Neon の
+  // 直接接続文字列>"` で作成した id に置き換える。
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "c382234793984223a41f857d1eb6705a"
     }
   ]
 }

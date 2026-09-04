@@ -16,12 +16,19 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
+import { Route as CollectionsSlugRouteImport } from './routes/collections.$slug'
+import { Route as ImagesKeyRouteImport } from './routes/images.$key'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
 import { Route as RecipesSlugRouteImport } from './routes/recipes.$slug'
 import { Route as TagsSlugRouteImport } from './routes/tags.$slug'
+import { Route as AdminCollectionsIndexRouteImport } from './routes/admin.collections.index'
+import { Route as AdminCollectionsNewRouteImport } from './routes/admin.collections.new'
 import { Route as AdminRecipesNewRouteImport } from './routes/admin.recipes.new'
+import { Route as ApiAdminImagesRouteImport } from './routes/api.admin.images'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as AdminCollectionsIdEditRouteImport } from './routes/admin.collections.$id.edit'
 import { Route as AdminRecipesIdEditRouteImport } from './routes/admin.recipes.$id.edit'
+import { Route as AdminRecipesIdRevisionsRouteImport } from './routes/admin.recipes.$id.revisions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +65,16 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CollectionsSlugRoute = CollectionsSlugRouteImport.update({
+  id: '/collections/$slug',
+  path: '/collections/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImagesKeyRoute = ImagesKeyRouteImport.update({
+  id: '/images/$key',
+  path: '/images/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecipesIndexRoute = RecipesIndexRouteImport.update({
   id: '/recipes/',
   path: '/recipes/',
@@ -73,19 +90,44 @@ const TagsSlugRoute = TagsSlugRouteImport.update({
   path: '/tags/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCollectionsIndexRoute = AdminCollectionsIndexRouteImport.update({
+  id: '/collections/',
+  path: '/collections/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCollectionsNewRoute = AdminCollectionsNewRouteImport.update({
+  id: '/collections/new',
+  path: '/collections/new',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRecipesNewRoute = AdminRecipesNewRouteImport.update({
   id: '/recipes/new',
   path: '/recipes/new',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiAdminImagesRoute = ApiAdminImagesRouteImport.update({
+  id: '/api/admin/images',
+  path: '/api/admin/images',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCollectionsIdEditRoute = AdminCollectionsIdEditRouteImport.update({
+  id: '/collections/$id/edit',
+  path: '/collections/$id/edit',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRecipesIdEditRoute = AdminRecipesIdEditRouteImport.update({
   id: '/recipes/$id/edit',
   path: '/recipes/$id/edit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRecipesIdRevisionsRoute = AdminRecipesIdRevisionsRouteImport.update({
+  id: '/recipes/$id/revisions',
+  path: '/recipes/$id/revisions',
   getParentRoute: () => AdminRoute,
 } as any)
 
@@ -96,13 +138,20 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
+  '/images/$key': typeof ImagesKeyRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
+  '/api/admin/images': typeof ApiAdminImagesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
+  '/admin/recipes/$id/revisions': typeof AdminRecipesIdRevisionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,13 +159,20 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
+  '/images/$key': typeof ImagesKeyRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin': typeof AdminIndexRoute
   '/recipes': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
+  '/api/admin/images': typeof ApiAdminImagesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
+  '/admin/recipes/$id/revisions': typeof AdminRecipesIdRevisionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,13 +182,20 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/health': typeof ApiHealthRoute
+  '/collections/$slug': typeof CollectionsSlugRoute
+  '/images/$key': typeof ImagesKeyRoute
   '/recipes/$slug': typeof RecipesSlugRoute
   '/tags/$slug': typeof TagsSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/recipes/': typeof RecipesIndexRoute
+  '/admin/collections/new': typeof AdminCollectionsNewRoute
   '/admin/recipes/new': typeof AdminRecipesNewRoute
+  '/api/admin/images': typeof ApiAdminImagesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/admin/collections/': typeof AdminCollectionsIndexRoute
+  '/admin/collections/$id/edit': typeof AdminCollectionsIdEditRoute
   '/admin/recipes/$id/edit': typeof AdminRecipesIdEditRoute
+  '/admin/recipes/$id/revisions': typeof AdminRecipesIdRevisionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -143,13 +206,20 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
+    | '/images/$key'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin/'
     | '/recipes/'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
+    | '/api/admin/images'
     | '/api/auth/$'
+    | '/admin/collections/'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
+    | '/admin/recipes/$id/revisions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -157,13 +227,20 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
+    | '/images/$key'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin'
     | '/recipes'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
+    | '/api/admin/images'
     | '/api/auth/$'
+    | '/admin/collections'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
+    | '/admin/recipes/$id/revisions'
   id:
     | '__root__'
     | '/'
@@ -172,13 +249,20 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/api/health'
+    | '/collections/$slug'
+    | '/images/$key'
     | '/recipes/$slug'
     | '/tags/$slug'
     | '/admin/'
     | '/recipes/'
+    | '/admin/collections/new'
     | '/admin/recipes/new'
+    | '/api/admin/images'
     | '/api/auth/$'
+    | '/admin/collections/'
+    | '/admin/collections/$id/edit'
     | '/admin/recipes/$id/edit'
+    | '/admin/recipes/$id/revisions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -188,9 +272,12 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  CollectionsSlugRoute: typeof CollectionsSlugRoute
+  ImagesKeyRoute: typeof ImagesKeyRoute
   RecipesSlugRoute: typeof RecipesSlugRoute
   TagsSlugRoute: typeof TagsSlugRoute
   RecipesIndexRoute: typeof RecipesIndexRoute
+  ApiAdminImagesRoute: typeof ApiAdminImagesRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -245,6 +332,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/collections/$slug': {
+      id: '/collections/$slug'
+      path: '/collections/$slug'
+      fullPath: '/collections/$slug'
+      preLoaderRoute: typeof CollectionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/images/$key': {
+      id: '/images/$key'
+      path: '/images/$key'
+      fullPath: '/images/$key'
+      preLoaderRoute: typeof ImagesKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recipes/': {
       id: '/recipes/'
       path: '/recipes'
@@ -266,12 +367,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TagsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/collections/': {
+      id: '/admin/collections/'
+      path: '/collections'
+      fullPath: '/admin/collections/'
+      preLoaderRoute: typeof AdminCollectionsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/collections/new': {
+      id: '/admin/collections/new'
+      path: '/collections/new'
+      fullPath: '/admin/collections/new'
+      preLoaderRoute: typeof AdminCollectionsNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/recipes/new': {
       id: '/admin/recipes/new'
       path: '/recipes/new'
       fullPath: '/admin/recipes/new'
       preLoaderRoute: typeof AdminRecipesNewRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/admin/images': {
+      id: '/api/admin/images'
+      path: '/api/admin/images'
+      fullPath: '/api/admin/images'
+      preLoaderRoute: typeof ApiAdminImagesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -280,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/collections/$id/edit': {
+      id: '/admin/collections/$id/edit'
+      path: '/collections/$id/edit'
+      fullPath: '/admin/collections/$id/edit'
+      preLoaderRoute: typeof AdminCollectionsIdEditRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/recipes/$id/edit': {
       id: '/admin/recipes/$id/edit'
       path: '/recipes/$id/edit'
@@ -287,19 +416,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRecipesIdEditRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/recipes/$id/revisions': {
+      id: '/admin/recipes/$id/revisions'
+      path: '/recipes/$id/revisions'
+      fullPath: '/admin/recipes/$id/revisions'
+      preLoaderRoute: typeof AdminRecipesIdRevisionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminCollectionsNewRoute: typeof AdminCollectionsNewRoute
   AdminRecipesNewRoute: typeof AdminRecipesNewRoute
+  AdminCollectionsIndexRoute: typeof AdminCollectionsIndexRoute
+  AdminCollectionsIdEditRoute: typeof AdminCollectionsIdEditRoute
   AdminRecipesIdEditRoute: typeof AdminRecipesIdEditRoute
+  AdminRecipesIdRevisionsRoute: typeof AdminRecipesIdRevisionsRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminCollectionsNewRoute: AdminCollectionsNewRoute,
   AdminRecipesNewRoute: AdminRecipesNewRoute,
+  AdminCollectionsIndexRoute: AdminCollectionsIndexRoute,
+  AdminCollectionsIdEditRoute: AdminCollectionsIdEditRoute,
   AdminRecipesIdEditRoute: AdminRecipesIdEditRoute,
+  AdminRecipesIdRevisionsRoute: AdminRecipesIdRevisionsRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -311,9 +455,12 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiHealthRoute: ApiHealthRoute,
+  CollectionsSlugRoute: CollectionsSlugRoute,
+  ImagesKeyRoute: ImagesKeyRoute,
   RecipesSlugRoute: RecipesSlugRoute,
   TagsSlugRoute: TagsSlugRoute,
   RecipesIndexRoute: RecipesIndexRoute,
+  ApiAdminImagesRoute: ApiAdminImagesRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

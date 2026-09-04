@@ -3,16 +3,19 @@
 drizzle-kit によるマイグレーション適用と、Neon のブランチ機能を使った安全な
 試行フローの手順書（企画書 §4.2・§8、アーキテクチャ §2-3）。
 
+適用済みのマイグレーションは DB の `drizzle.__drizzle_migrations` を参照する。
+個別の注意点はマイグレーション SQL のコメントに書く（Markdown 側の実施記録は
+DB 側の写しでしかなく更新漏れで陳腐化するため、本ファイルでは持たない）。
+
 ## 前提
 
-- drizzle-kit は Workers の DB バインディングに到達できないため、`.env` の
-  `DATABASE_URL`（Neon の**直接接続文字列**。pooledは不可）を直接使う
+- drizzle-kit は Workers の DB バインディング（Hyperdrive）に到達できないため、
+  `.env` の `DATABASE_URL`（Neon の**直接接続文字列**。pooledは不可）を直接使う
   （アーキテクチャ §3-5）。`.env.example` を元にローカルで作成する。
-- アプリ本体（Workers）は `@neondatabase/serverless` の HTTP モードを使う。
-  drizzle-kit 用の直接接続とは別経路。
-- drizzle-kit CLI 用に `pg`（node-postgres）を devDependencies に追加している。
-  無いと `@neondatabase/serverless`（WebSocket）にフォールバックし、
-  `pnpm db:migrate` が接続失敗することがあるため。
+- アプリ本体（Workers）は Hyperdrive ＋ `node-postgres`（`pg`）を使う
+  （Phase 2、issue #22、`docs/hyperdrive-migration.md`）。drizzle-kit 用の
+  直接接続とは別経路（Hyperdrive は Workers 実行時のバインディングのため、
+  ローカル CLI プロセスからは使えない）。
 
 ## 適用手順
 
@@ -47,8 +50,3 @@ BetterAuth CLI も同様に直接接続文字列が必要になる。`src/db/sch
 `0004_search_pg_trgm.sql` は先頭で `CREATE EXTENSION IF NOT EXISTS pg_trgm`
 を実行してから `gin_trgm_ops` の索引を作る。拡張の作成には所有者権限が必要な
 ため、Neon の**オーナーロール**の接続文字列で `pnpm db:migrate` を実行する。
-
-## 実施記録
-
-- 2026-08-29：初回マイグレーション（recipes / code_snippets / tags /
-  recipe_tags / user）を開発ブランチ→本体ブランチの順に適用済み（PR #25）。

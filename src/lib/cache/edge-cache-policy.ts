@@ -12,6 +12,12 @@ export const PUBLIC_CACHE_CONTROL =
 	"public, max-age=0, s-maxage=300, stale-while-revalidate=600";
 /** sitemap.xml / robots.txt はクローラ向けで更新頻度が低い */
 export const CRAWLER_CACHE_CONTROL = "public, max-age=0, s-maxage=3600";
+/**
+ * レシピ本文に埋め込む画像（/images/$key）の Cache-Control。
+ * アップロードのたびに新しいランダムな key を発行するため（同一 key の内容が
+ * 変わることがない）、ブラウザ側にも長期キャッシュさせてよい（issue #20）。
+ */
+export const IMAGE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 /** 検索結果はクエリごとに URL が増えるため短命にする */
 export const SEARCH_CACHE_CONTROL = "public, max-age=0, s-maxage=60";
 
@@ -22,7 +28,7 @@ const EXACT_PATHS = new Set([
 	"/sitemap.xml",
 	"/robots.txt",
 ]);
-const PREFIXES = ["/recipes/", "/tags/"];
+const PREFIXES = ["/recipes/", "/tags/", "/collections/"];
 
 /** パスがエッジキャッシュ対象の公開ページかどうか。 */
 export function isCacheablePath(pathname: string): boolean {
@@ -108,4 +114,14 @@ export interface PurgeTargets {
 	recipeSlugs?: string[];
 	/** 影響するタグの slug */
 	tagSlugs?: string[];
+	/** 更新・削除されたコレクションの slug（旧 slug も含める） */
+	collectionSlugs?: string[];
+	/**
+	 * `/recipes/$slug?collection=$collectionSlug`（コレクション経由で開いた
+	 * ときの前後ナビゲーション付きページ）の組み合わせ。この URL は
+	 * `/recipes/$slug` とは別のキャッシュキーになるため、recipeSlugs /
+	 * collectionSlugs の破棄だけでは古いナビゲーション・シリーズ名が残る
+	 * （PRレビュー指摘）。
+	 */
+	recipeCollectionPairs?: { recipeSlug: string; collectionSlug: string }[];
 }

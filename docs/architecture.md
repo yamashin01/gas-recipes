@@ -21,9 +21,16 @@
 段階的に切り替える（企画書 §4.3）。
 
 - **Phase 1**：`@neondatabase/serverless`（HTTP）＋ `drizzle-orm/neon-http`
-- **Phase 2**：Hyperdrive ＋ `node-postgres`（8.16.3 以上）に**ドライバごと差し替え**
+- **Phase 2（切り替え済み）**：Hyperdrive ＋ `node-postgres`（`pg`、8.16.3 以上）に**ドライバごと差し替え**
 
-**両者は併用しない。** Neon の serverless driver は WebSocket / HTTP を使うため、TCP 前提の Hyperdrive のプーリングをバイパスしてしまい、併用しても効果が得られない。
+**両者は併用しない。** Neon の serverless driver は WebSocket / HTTP を使うため、TCP 前提の Hyperdrive のプーリングをバイパスしてしまい、併用しても効果が得られない（`@neondatabase/serverless` は依存関係からも削除済み）。
+
+切り替えに伴う変更点：
+
+- `src/db/client.ts` の `createDb()` は `env.HYPERDRIVE.connectionString`（Hyperdrive が発行するプール接続文字列）を受け取る。drizzle-kit CLI は引き続き Neon への直接接続文字列（`.env` の `DATABASE_URL`）を使う（Hyperdrive を経由できないため。§3-5）
+- `node-postgres` は本物の TCP セッションを持つため `db.transaction()` が使える。neon-http（HTTP 経由で `db.transaction()` 非対応）のために使っていた `db.batch()` は全箇所を `db.transaction()` に置き換えた
+- Workers のリクエストごとに `Pool` を作成し、リクエスト終了時に `waitUntil(db.$client.end())` で閉じる（Cloudflare の Hyperdrive + node-postgres 推奨パターン。プール自体の再利用は Hyperdrive 側が担う）
+- 切り替え前後の効果測定は [docs/hyperdrive-migration.md](./hyperdrive-migration.md) を参照（企画書 §12 の学習面の完了定義）
 
 ## 3. 設計上の遵守事項
 

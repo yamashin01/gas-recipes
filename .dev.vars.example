@@ -1,6 +1,17 @@
 # wrangler dev がローカルで読み込む Workers 用シークレット。
 # 本番は `wrangler secret put <NAME>` で設定する。
-DATABASE_URL=
+#
+# DATABASE_URL はここには不要。Workers 本体は Hyperdrive バインディング
+# （wrangler.jsonc の hyperdrive）経由で Neon に接続するため（issue #22）。
+# drizzle-kit CLI 用の直接接続文字列は .env（.env.example 参照）で管理する。
+#
+# wrangler dev は Hyperdrive をローカルではエミュレートできないため、
+# hyperdrive[0].id が有効な id でも、以下の変数（Neon の直接接続文字列）を
+# 設定しないと必ず失敗する（Cloudflare の仕様。
+# https://developers.cloudflare.com/hyperdrive/configuration/local-development/）。
+# 本番デプロイ（wrangler deploy）には別途 hyperdrive[0].id への実際の id の
+# 設定が必要（docs/hyperdrive-migration.md 参照）。
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=
 
 # BetterAuth（docs/proposal.md §7・§7.2）
 # openssl rand -base64 32 などで生成する

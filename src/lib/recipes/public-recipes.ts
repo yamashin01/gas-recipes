@@ -2,15 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { Db } from "../../db/client";
 import { codeSnippets, recipes, recipeTags, tags } from "../../db/schema";
+import { PUBLISHED } from "./published";
 import { isSnippetLanguage } from "./snippet-language";
 
-// status = published だけでなく visibility = public も条件にする。
-// members は Phase 3（シンラボ会員限定公開）で使う想定のため、
-// 公開ページからは現時点でも将来的にも除外する（docs/proposal.md §3.3）。
-export const PUBLISHED = and(
-	eq(recipes.status, "published"),
-	eq(recipes.visibility, "public"),
-);
+export { PUBLISHED } from "./published";
 export const RECIPES_PAGE_SIZE = 10;
 
 function recipeIdsForTagSlug(db: Db, tagSlug: string) {
@@ -21,25 +16,53 @@ function recipeIdsForTagSlug(db: Db, tagSlug: string) {
 		.where(eq(tags.slug, tagSlug));
 }
 
+const HOME_RECIPE_COLUMNS = {
+	id: true,
+	slug: true,
+	title: true,
+	summary: true,
+	publishedAt: true,
+} as const;
+const HOME_RECIPE_WITH = {
+	recipeTags: { with: { tag: { columns: { slug: true, name: true } } } },
+} as const;
+
+function toRecipeSummary(recipe: {
+	id: string;
+	slug: string;
+	title: string;
+	summary: string;
+	publishedAt: Date | null;
+	recipeTags: { tag: { slug: string; name: string } }[];
+}) {
+	return {
+		id: recipe.id,
+		slug: recipe.slug,
+		title: recipe.title,
+		summary: recipe.summary,
+		publishedAt: recipe.publishedAt,
+		tags: recipe.recipeTags.map((rt) => rt.tag),
+	};
+}
+
 export const getHomeData = createServerFn({ method: "GET" }).handler(
 	async ({ context }) => {
-		const [latestRecipes, popularTags] = await Promise.all([
+		const [latestRecipes, popularRecipes, popularTags] = await Promise.all([
 			context.db.query.recipes.findMany({
 				where: PUBLISHED,
 				orderBy: [desc(recipes.publishedAt)],
 				limit: 6,
-				columns: {
-					id: true,
-					slug: true,
-					title: true,
-					summary: true,
-					publishedAt: true,
-				},
-				with: {
-					recipeTags: {
-						with: { tag: { columns: { slug: true, name: true } } },
-					},
-				},
+				columns: HOME_RECIPE_COLUMNS,
+				with: HOME_RECIPE_WITH,
+			}),
+			// 閲覧数（recipes.view_count）は Cron Triggers による日次集計値
+			// （issue #21）。同数のときは新着順にフォールバックする。
+			context.db.query.recipes.findMany({
+				where: PUBLISHED,
+				orderBy: [desc(recipes.viewCount), desc(recipes.publishedAt)],
+				limit: 6,
+				columns: HOME_RECIPE_COLUMNS,
+				with: HOME_RECIPE_WITH,
 			}),
 			context.db
 				.select({
@@ -58,29 +81,30 @@ export const getHomeData = createServerFn({ method: "GET" }).handler(
 		]);
 
 		return {
-			latestRecipes: latestRecipes.map((recipe) => ({
-				id: recipe.id,
-				slug: recipe.slug,
-				title: recipe.title,
-				summary: recipe.summary,
-				publishedAt: recipe.publishedAt,
-				tags: recipe.recipeTags.map((rt) => rt.tag),
-			})),
+			latestRecipes: latestRecipes.map(toRecipeSummary),
+			popularRecipes: popularRecipes.map(toRecipeSummary),
 			popularTags,
 		};
 	},
 );
 
+export type RecipeSort = "new" | "popular";
+
 export const listPublishedRecipes = createServerFn({ method: "GET" })
 	.validator((input: unknown) => {
-		const raw = (input ?? {}) as { tagSlug?: unknown; page?: unknown };
+		const raw = (input ?? {}) as {
+			tagSlug?: unknown;
+			page?: unknown;
+			sort?: unknown;
+		};
 		const tagSlug =
 			typeof raw.tagSlug === "string" && raw.tagSlug ? raw.tagSlug : undefined;
 		const page =
 			typeof raw.page === "number" && Number.isInteger(raw.page) && raw.page > 0
 				? raw.page
 				: 1;
-		return { tagSlug, page };
+		const sort: RecipeSort = raw.sort === "popular" ? "popular" : "new";
+		return { tagSlug, page, sort };
 	})
 	.handler(async ({ data, context }) => {
 		const where = data.tagSlug
@@ -90,41 +114,31 @@ export const listPublishedRecipes = createServerFn({ method: "GET" })
 				)
 			: PUBLISHED;
 		const offset = (data.page - 1) * RECIPES_PAGE_SIZE;
+		// 閲覧数（recipes.view_count）は Cron Triggers による日次集計値
+		// （issue #21）。同数のときは新着順にフォールバックする。
+		const orderBy =
+			data.sort === "popular"
+				? [desc(recipes.viewCount), desc(recipes.publishedAt)]
+				: [desc(recipes.publishedAt)];
 
 		const [rows, [{ total }]] = await Promise.all([
 			context.db.query.recipes.findMany({
 				where,
-				orderBy: [desc(recipes.publishedAt)],
+				orderBy,
 				limit: RECIPES_PAGE_SIZE,
 				offset,
-				columns: {
-					id: true,
-					slug: true,
-					title: true,
-					summary: true,
-					publishedAt: true,
-				},
-				with: {
-					recipeTags: {
-						with: { tag: { columns: { slug: true, name: true } } },
-					},
-				},
+				columns: HOME_RECIPE_COLUMNS,
+				with: HOME_RECIPE_WITH,
 			}),
 			context.db.select({ total: count() }).from(recipes).where(where),
 		]);
 
 		return {
-			items: rows.map((recipe) => ({
-				id: recipe.id,
-				slug: recipe.slug,
-				title: recipe.title,
-				summary: recipe.summary,
-				publishedAt: recipe.publishedAt,
-				tags: recipe.recipeTags.map((rt) => rt.tag),
-			})),
+			items: rows.map(toRecipeSummary),
 			page: data.page,
 			pageSize: RECIPES_PAGE_SIZE,
 			totalPages: Math.max(1, Math.ceil(total / RECIPES_PAGE_SIZE)),
+			sort: data.sort,
 		};
 	});
 
@@ -173,6 +187,12 @@ export const getPublishedRecipeBySlug = createServerFn({ method: "GET" })
 		if (!recipe) {
 			return null;
 		}
+
+		// 閲覧記録はここでは行わない。TanStack Router の defaultPreload: "intent"
+		// によりこの loader は <Link> へのホバーだけでも RPC として呼ばれるため、
+		// ここで記録すると実際に開いていないページまで加算されてしまう
+		// （PRレビュー指摘）。記録は recipes.$slug.tsx がマウント時に
+		// recordView（views/record-view.ts）を呼ぶ形にしている。
 
 		return {
 			id: recipe.id,
