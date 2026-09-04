@@ -19,7 +19,7 @@
     // `wrangler kv namespace create VIEW_COUNTS_KV` で作成した id に置き換える。
     {
       "binding": "VIEW_COUNTS_KV",
-      "id": "REPLACE_WITH_VIEW_COUNTS_KV_NAMESPACE_ID"
+      "id": "cff0997be2874a858412ee34610b4729"
     }
   ],
   // レシピ本文に埋め込む画像の保存先（docs/proposal.md §3.2・§5.1、issue #20）。
@@ -42,7 +42,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REPLACE_WITH_HYPERDRIVE_CONFIG_ID"
+      "id": "c382234793984223a41f857d1eb6705a"
     }
   ]
 }
