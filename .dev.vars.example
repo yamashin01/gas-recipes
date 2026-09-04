@@ -5,14 +5,13 @@
 # （wrangler.jsonc の hyperdrive）経由で Neon に接続するため（issue #22）。
 # drizzle-kit CLI 用の直接接続文字列は .env（.env.example 参照）で管理する。
 #
-# wrangler.jsonc の hyperdrive[0].id はプレースホルダーのままだと
-# `wrangler hyperdrive create` で実際の id に置き換えるまで `wrangler dev` /
-# `wrangler deploy` の両方が失敗する。`wrangler dev`（ローカル）だけ先に
-# 動かしたい場合は、以下の変数に Neon の直接接続文字列を設定すると
-# Hyperdrive の設定を Cloudflare 側へ問い合わせずローカルから直接つなぎに
-# 行く（本番デプロイには実際の id への置き換えが別途必要。
-# docs/hyperdrive-migration.md 参照）。
-WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=
+# wrangler dev は Hyperdrive をローカルではエミュレートできないため、
+# hyperdrive[0].id が有効な id でも、以下の変数（Neon の直接接続文字列）を
+# 設定しないと必ず失敗する（Cloudflare の仕様。
+# https://developers.cloudflare.com/hyperdrive/configuration/local-development/）。
+# 本番デプロイ（wrangler deploy）には別途 hyperdrive[0].id への実際の id の
+# 設定が必要（docs/hyperdrive-migration.md 参照）。
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=
 
 # BetterAuth（docs/proposal.md §7・§7.2）
 # openssl rand -base64 32 などで生成する

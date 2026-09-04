@@ -35,17 +35,19 @@ Cloudflare のアカウント操作が必要で、この環境（セッション
 ため、上記の手順1〜3をリポジトリ所有者が実施するまでは：
 
 - `wrangler deploy`（本番）は失敗する
-- `wrangler dev`（ローカル）も、Hyperdrive の設定を Cloudflare 側へ問い合わせ
-  に行くため失敗する
+- `wrangler dev`（ローカル）も、`.dev.vars` にローカル接続文字列の指定が無い
+  限り失敗する（下記）
 
 `main` を常にデプロイ可能な状態に保つ（CLAUDE.md）ため、**このブランチを
 `main` にマージする前に上記の手順1〜4を実施し、実際の id に置き換えること。**
 
-ローカル開発だけ先に動かしたい場合は、`.dev.vars.example` にある
-`WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` を `.dev.vars` に
-コピーして Neon の直接接続文字列を設定すると、`hyperdrive[0].id` が未設定の
-ままでも `wrangler dev` はその接続文字列へ直接つなぎに行く（本番デプロイには
-実際の id への置き換えが別途必要）。詳細は
+**`wrangler dev`（ローカル）は、`hyperdrive[0].id` が有効な本物の id で
+あっても、Hyperdrive 自体をローカルでエミュレートできないため必ず失敗する。**
+`.dev.vars.example` にある `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`
+を `.dev.vars`（`.dev.vars.example` をコピーして作成）に設定し、値に Neon の
+直接接続文字列を入れると、`wrangler dev` はその接続文字列へ直接つなぎに行く
+（本番デプロイ用の `hyperdrive[0].id` とは別に、常にこの変数の設定が必要）。
+詳細は
 [Cloudflare のドキュメント](https://developers.cloudflare.com/hyperdrive/configuration/local-development/)
 を参照。
 
